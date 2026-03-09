@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Listing Tool</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0a0f;
+            color: #e0e0e0;
+            min-height: 100vh;
+        }
+        .container { max-width: 1100px; margin: 0 auto; padding: 24px; }
+        
+        h1 {
+            font-size: 28px;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 8px;
+        }
+        .subtitle { color: #888; margin-bottom: 32px; font-size: 14px; }
+        
+        .card {
+            background: #141419;
+            border: 1px solid #222;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+        .card h2 {
+            font-size: 18px;
+            color: #fff;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        .form-grid .full { grid-column: 1 / -1; }
+        
+        label {
+            display: block;
+            font-size: 13px;
+            color: #999;
+            margin-bottom: 6px;
+            font-weight: 500;
+        }
+        input[type="text"], input[type="url"], input[type="password"] {
+            width: 100%;
+            padding: 10px 14px;
+            background: #0d0d12;
+            border: 1px solid #2a2a35;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+        input:focus {
+            outline: none;
+            border-color: #4f8cff;
+        }
+        
+        .checkbox-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 8px;
+        }
+        .checkbox-row input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: #4f8cff;
+        }
+        .checkbox-row label { margin: 0; color: #ccc; }
+        
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 28px;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #4f8cff 0%, #3366cc 100%);
+            color: #fff;
+        }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(79,140,255,0.3); }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        
+        .btn-secondary {
+            background: #1e1e28;
+            color: #ccc;
+            border: 1px solid #333;
+        }
+        .btn-secondary:hover { background: #2a2a35; }
+        
+        .btn-row { display: flex; gap: 12px; margin-top: 20px; }
+        
+        /* Progress */
+        .progress-section { display: none; }
+        .progress-section.active { display: block; }
+        
+        .progress-bar-wrap {
+            background: #1a1a22;
+            border-radius: 6px;
+            height: 8px;
+            overflow: hidden;
+            margin: 12px 0;
+        }
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #4f8cff, #66aaff);
+            border-radius: 6px;
+            transition: width 0.3s;
+            width: 0%;
+        }
+        
+        .stats {
+            display: flex;
+            gap: 24px;
+            margin: 16px 0;
+        }
+        .stat {
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #fff;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: #777;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .stat-value.success { color: #4caf50; }
+        .stat-value.fail { color: #ff5252; }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .status-pending { background: #2a2a35; color: #999; }
+        .status-scraping { background: #1a3a5c; color: #4f8cff; }
+        .status-processing { background: #1a3a2c; color: #4caf50; }
+        .status-completed { background: #1a3a2c; color: #4caf50; }
+        .status-error { background: #3a1a1a; color: #ff5252; }
+        
+        /* Log */
+        .log-box {
+            background: #0a0a0f;
+            border: 1px solid #1a1a22;
+            border-radius: 8px;
+            padding: 16px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 12px;
+            line-height: 1.8;
+        }
+        .log-box p { color: #888; }
+        .log-box p.success { color: #4caf50; }
+        .log-box p.error { color: #ff5252; }
+        .log-box p.info { color: #4f8cff; }
+        
+        /* Results table */
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 12px;
+        }
+        .results-table th {
+            text-align: left;
+            padding: 10px 12px;
+            font-size: 12px;
+            color: #777;
+            text-transform: uppercase;
+            border-bottom: 1px solid #222;
+        }
+        .results-table td {
+            padding: 10px 12px;
+            font-size: 13px;
+            border-bottom: 1px solid #1a1a22;
+        }
+        .results-table a {
+            color: #4f8cff;
+            text-decoration: none;
+        }
+        .results-table a:hover { text-decoration: underline; }
+        
+        .badge-success { color: #4caf50; }
+        .badge-fail { color: #ff5252; }
+        
+        /* Preview */
+        .preview-results {
+            margin-top: 12px;
+            padding: 12px;
+            background: #0d0d12;
+            border-radius: 8px;
+            font-size: 13px;
+        }
+        .preview-results a {
+            color: #4f8cff;
+            text-decoration: none;
+            display: block;
+            padding: 4px 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Product Listing Tool</h1>
+        <p class="subtitle">Scrape → AI Generate → Upload to Shopify — fully automated</p>
+        
+        <!-- Config Card -->
+        <div class="card" id="configCard">
+            <h2>⚙️ Configuration</h2>
+            <div class="form-grid">
+                <div class="full">
+                    <label>Collection URL (reference website)</label>
+                    <input type="url" id="collectionUrl" placeholder="https://example.com/collections/safety-products">
+                </div>
+                <div>
+                    <label>Shopify Store</label>
+                    <input type="text" id="store" placeholder="your-store.myshopify.com">
+                </div>
+                <div>
+                    <label>Client ID</label>
+                    <input type="text" id="clientId" placeholder="Shopify Client ID">
+                </div>
+                <div>
+                    <label>Client Secret</label>
+                    <input type="password" id="clientSecret" placeholder="Shopify Client Secret">
+                </div>
+                <div>
+                    <div class="checkbox-row">
+                        <input type="checkbox" id="generateImages" checked>
+                        <label for="generateImages">Generate AI images with DALL-E ($0.08/image)</label>
+                    </div>
+                </div>
+            </div>
+            <div class="btn-row">
+                <button class="btn btn-secondary" onclick="previewScrape()">🔍 Preview Products</button>
+                <button class="btn btn-primary" id="startBtn" onclick="startJob()">🚀 Start Listing</button>
+            </div>
+            
+            <div id="previewBox" class="preview-results" style="display:none;"></div>
+        </div>
+        
+        <!-- Progress Card -->
+        <div class="card progress-section" id="progressCard">
+            <h2>
+                📊 Progress 
+                <span class="status-badge" id="statusBadge">Pending</span>
+            </h2>
+            
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-value" id="statTotal">0</div>
+                    <div class="stat-label">Total</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value success" id="statDone">0</div>
+                    <div class="stat-label">Done</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value fail" id="statFailed">0</div>
+                    <div class="stat-label">Failed</div>
+                </div>
+            </div>
+            
+            <div class="progress-bar-wrap">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+            
+            <div class="log-box" id="logBox"></div>
+        </div>
+        
+        <!-- Results Card -->
+        <div class="card progress-section" id="resultsCard">
+            <h2>✅ Results</h2>
+            <table class="results-table">
+                <thead>
+                    <tr>
+                        <th>Status</th>
+                        <th>Product</th>
+                        <th>Variants</th>
+                        <th>Images</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="resultsBody"></tbody>
+            </table>
+        </div>
+    </div>
+    
+    <script>
+        let currentJobId = null;
+        let pollInterval = null;
+        
+        // Load saved config from localStorage
+        window.addEventListener('load', () => {
+            const saved = localStorage.getItem('shopify_config');
+            if (saved) {
+                const cfg = JSON.parse(saved);
+                document.getElementById('store').value = cfg.store || '';
+                document.getElementById('clientId').value = cfg.clientId || '';
+                document.getElementById('clientSecret').value = cfg.clientSecret || '';
+            }
+        });
+        
+        function saveConfig() {
+            localStorage.setItem('shopify_config', JSON.stringify({
+                store: document.getElementById('store').value,
+                clientId: document.getElementById('clientId').value,
+                clientSecret: document.getElementById('clientSecret').value,
+            }));
+        }
+        
+        async function previewScrape() {
+            const url = document.getElementById('collectionUrl').value.trim();
+            if (!url) return alert('Enter a collection URL first');
+            
+            const box = document.getElementById('previewBox');
+            box.style.display = 'block';
+            box.innerHTML = '🔍 Scanning for products...';
+            
+            try {
+                const resp = await fetch('/api/scrape-preview', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({url})
+                });
+                const data = await resp.json();
+                
+                if (data.error) {
+                    box.innerHTML = `❌ ${data.error}`;
+                    return;
+                }
+                
+                let html = `<strong>Found ${data.product_count} products</strong><br>`;
+                data.products.forEach(p => {
+                    html += `<a href="${p}" target="_blank">${p}</a>`;
+                });
+                if (data.product_count > 20) {
+                    html += `<p style="color:#777">...and ${data.product_count - 20} more</p>`;
+                }
+                box.innerHTML = html;
+            } catch(e) {
+                box.innerHTML = `❌ Error: ${e.message}`;
+            }
+        }
+        
+        async function startJob() {
+            const url = document.getElementById('collectionUrl').value.trim();
+            const store = document.getElementById('store').value.trim();
+            const clientId = document.getElementById('clientId').value.trim();
+            const clientSecret = document.getElementById('clientSecret').value.trim();
+            const genImages = document.getElementById('generateImages').checked;
+            
+            if (!url || !store || !clientId || !clientSecret) {
+                return alert('Please fill in all fields');
+            }
+            
+            saveConfig();
+            
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('progressCard').classList.add('active');
+            
+            try {
+                const resp = await fetch('/api/start', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        collection_url: url,
+                        store, client_id: clientId,
+                        client_secret: clientSecret,
+                        generate_images: genImages
+                    })
+                });
+                const data = await resp.json();
+                
+                if (data.error) {
+                    alert(data.error);
+                    document.getElementById('startBtn').disabled = false;
+                    return;
+                }
+                
+                currentJobId = data.job_id;
+                pollInterval = setInterval(pollStatus, 2000);
+            } catch(e) {
+                alert('Failed to start: ' + e.message);
+                document.getElementById('startBtn').disabled = false;
+            }
+        }
+        
+        async function pollStatus() {
+            if (!currentJobId) return;
+            
+            try {
+                const resp = await fetch(`/api/status/${currentJobId}`);
+                const data = await resp.json();
+                
+                // Update stats
+                document.getElementById('statTotal').textContent = data.products_total;
+                document.getElementById('statDone').textContent = data.products_done;
+                document.getElementById('statFailed').textContent = data.products_failed;
+                
+                // Progress bar
+                const pct = data.products_total ? (data.products_done / data.products_total * 100) : 0;
+                document.getElementById('progressBar').style.width = pct + '%';
+                
+                // Status badge
+                const badge = document.getElementById('statusBadge');
+                badge.textContent = data.status;
+                badge.className = 'status-badge status-' + data.status;
+                
+                // Logs
+                const logBox = document.getElementById('logBox');
+                logBox.innerHTML = data.logs.map(l => {
+                    let cls = '';
+                    if (l.includes('✅')) cls = 'success';
+                    else if (l.includes('❌') || l.includes('💥')) cls = 'error';
+                    else if (l.includes('🤖') || l.includes('🔍') || l.includes('📤')) cls = 'info';
+                    return `<p class="${cls}">${l}</p>`;
+                }).join('');
+                logBox.scrollTop = logBox.scrollHeight;
+                
+                // Results
+                if (data.results.length > 0) {
+                    document.getElementById('resultsCard').classList.add('active');
+                    const tbody = document.getElementById('resultsBody');
+                    tbody.innerHTML = data.results.map(r => {
+                        if (r.status === 'success') {
+                            return `<tr>
+                                <td class="badge-success">✅</td>
+                                <td>${r.shopify_title}</td>
+                                <td>${r.variants}</td>
+                                <td>${r.images}</td>
+                                <td><a href="${r.admin_url}" target="_blank">View in Shopify</a></td>
+                            </tr>`;
+                        } else {
+                            return `<tr>
+                                <td class="badge-fail">❌</td>
+                                <td>${r.source_title}</td>
+                                <td colspan="3">${r.error}</td>
+                            </tr>`;
+                        }
+                    }).join('');
+                }
+                
+                // Stop polling if done
+                if (data.status === 'completed' || data.status === 'error') {
+                    clearInterval(pollInterval);
+                    document.getElementById('startBtn').disabled = false;
+                }
+            } catch(e) {
+                console.error('Poll error:', e);
+            }
+        }
+    </script>
+</body>
+</html>
