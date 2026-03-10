@@ -121,7 +121,7 @@ def process_job(job):
                 if job.generate_images:
                     job.log("🎨 Generating product images with Gemini...")
                     try:
-                        images = generate_images_for_product(listing, log_callback=job.log)
+                        images = generate_images_for_product(listing, product_data=product_data, log_callback=job.log)
                         job.log(f"✅ Generated {len(images)} images total")
                     except Exception as e:
                         job.log(f"⚠️ Image generation failed: {e} — continuing without images")
