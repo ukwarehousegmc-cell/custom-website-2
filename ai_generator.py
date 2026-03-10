@@ -191,14 +191,26 @@ def generate_product_image_openai(prompt):
 
     full_prompt = f"""{prompt}
 
-CRITICAL RULES FOR IMAGE GENERATION:
-1. The product must be PHYSICALLY IDENTICAL to the reference — exact same shape, color, material, texture, dimensions, every detail must match 100%. This is an AI-rendered version of the real product, NOT a redesign.
-2. DO NOT change anything about the product itself — no simplification, no missing parts, no altered colors or proportions.
-3. The USE-CASE ENVIRONMENT must be COMPLETELY DIFFERENT from the reference website — different location, different setting, different scene.
-4. The CAMERA ANGLE must be DIFFERENT from the reference website — if reference shows front view, show a 3/4 angle or side view. Never copy the same angle.
-5. The image must look like a professional AI-rendered product photo — photorealistic, high quality, natural lighting.
-6. No text, no logos, no branding, no labels on the image.
-7. IMAGE SIZE: exactly 1000 x 1000 pixels with 1:1 aspect ratio (square)."""
+ABSOLUTE RULES — DO NOT BREAK ANY:
+
+PRODUCT (MUST BE 100% IDENTICAL — ZERO CHANGES):
+- Exact same color — if it's silver, it stays silver. If it's black, it stays black. NO color changes.
+- Exact same shape — every curve, edge, corner, hole, groove must match perfectly.
+- Exact same material finish — matte stays matte, glossy stays glossy, brushed stays brushed.
+- Exact same proportions and dimensions — do NOT make it bigger, smaller, thicker, or thinner.
+- Exact same surface texture — every ridge, pattern, grain must be preserved.
+- ALL structural details preserved — screws, brackets, fasteners, handles, slots, everything.
+- This is the SAME physical product, just photographed in a different place. Nothing about the product changes.
+
+WHAT MUST BE DIFFERENT (ONLY THESE):
+- The ENVIRONMENT/LOCATION — show the product in a different real-world setting than the reference.
+- The USE CASE — demonstrate the product being used in a different but realistic scenario.
+- People, surroundings, background — all different from reference.
+
+OTHER RULES:
+- Professional photorealistic quality, natural lighting.
+- No text, no logos, no branding, no labels on the image.
+- IMAGE SIZE: exactly 1000 x 1000 pixels, 1:1 square aspect ratio."""
 
     response = client.images.generate(
         model="gpt-image-1.5",
