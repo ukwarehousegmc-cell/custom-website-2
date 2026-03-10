@@ -201,10 +201,12 @@ Now generate a NEW image based on these rules:
 
 {prompt}
 
-CRITICAL: The product in your generated image MUST look exactly like the reference images above — same shape, same color, same material, same proportions. Do NOT simplify or change any detail."""
+CRITICAL: The product in your generated image MUST look exactly like the reference images above — same shape, same color, same material, same proportions. Do NOT simplify or change any detail.
+
+IMAGE SIZE: The image MUST be exactly 1000 x 1000 pixels with 1:1 aspect ratio (square)."""
         ))
     else:
-        contents.append(genai.types.Part(text=prompt))
+        contents.append(genai.types.Part(text=f"{prompt}\n\nIMAGE SIZE: The image MUST be exactly 1000 x 1000 pixels with 1:1 aspect ratio (square)."))
 
     response = gemini_client.models.generate_content(
         model="gemini-2.5-flash-image",
