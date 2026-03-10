@@ -41,7 +41,7 @@ STRICT RULES:
 
 4. PRODUCT TYPE: Must match the collection name exactly.
 
-5. TAGS: Include collection name, original product title, website name (without .com/.co.uk)
+5. TAGS: Include collection name and original product title (WITHOUT any brand names). Do NOT include the reference website name or domain in tags.
 
 6. VARIANTS: Include ALL variants exactly as shown — sizes, colours, dimensions. Do NOT miss any. Do NOT guess.
 
