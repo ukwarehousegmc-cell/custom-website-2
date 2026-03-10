@@ -184,27 +184,27 @@ def download_reference_images(image_urls, max_images=3):
     return ref_images
 
 
-def generate_product_image_openai(prompt):
-    """Generate a product image using OpenAI gpt-image-1.5."""
+def generate_product_image_openai(prompt, reference_images=None):
+    """Generate a product image using OpenAI gpt-image-1.5 with reference images."""
     if not client:
         init_openai()
 
-    full_prompt = f"""{prompt}
+    full_prompt = f"""Look at the reference product images provided. Now generate a NEW image following these rules:
+
+{prompt}
 
 ABSOLUTE RULES — DO NOT BREAK ANY:
 
-PRODUCT (MUST BE 100% IDENTICAL — ZERO CHANGES):
-- Exact same color — if it's silver, it stays silver. If it's black, it stays black. NO color changes.
-- Exact same shape — every curve, edge, corner, hole, groove must match perfectly.
-- Exact same material finish — matte stays matte, glossy stays glossy, brushed stays brushed.
-- Exact same proportions and dimensions — do NOT make it bigger, smaller, thicker, or thinner.
-- Exact same surface texture — every ridge, pattern, grain must be preserved.
-- ALL structural details preserved — screws, brackets, fasteners, handles, slots, everything.
-- This is the SAME physical product, just photographed in a different place. Nothing about the product changes.
+PRODUCT (MUST BE 100% IDENTICAL TO REFERENCE IMAGES — ZERO CHANGES):
+- The product must look EXACTLY like the reference images — same color, same shape, same material, same finish.
+- Every curve, edge, corner, hole, groove, ridge, fastener must match perfectly.
+- Same proportions and dimensions — do NOT make it bigger, smaller, thicker, or thinner.
+- Same surface texture — matte stays matte, glossy stays glossy, brushed stays brushed.
+- This is the SAME physical product from the reference images, just in a different place.
 
 WHAT MUST BE DIFFERENT (ONLY THESE):
-- The ENVIRONMENT/LOCATION — show the product in a different real-world setting than the reference.
-- The USE CASE — demonstrate the product being used in a different but realistic scenario.
+- The ENVIRONMENT/LOCATION — completely different real-world setting than the reference.
+- The USE CASE — different but realistic scenario showing the product in use.
 - People, surroundings, background — all different from reference.
 
 OTHER RULES:
@@ -212,9 +212,28 @@ OTHER RULES:
 - No text, no logos, no branding, no labels on the image.
 - IMAGE SIZE: exactly 1000 x 1000 pixels, 1:1 square aspect ratio."""
 
+    # Build image inputs from reference images
+    image_inputs = []
+    if reference_images:
+        for ref in reference_images:
+            img_b64 = base64.b64encode(ref["data"]).decode("utf-8")
+            image_inputs.append({
+                "type": "input_image",
+                "input_image": {
+                    "image_data": img_b64,
+                    "media_type": ref["mime"],
+                },
+            })
+
+    # Add text prompt
+    image_inputs.append({
+        "type": "text",
+        "text": full_prompt,
+    })
+
     response = client.images.generate(
         model="gpt-image-1.5",
-        prompt=full_prompt,
+        prompt=image_inputs,
         size="1024x1024",
         quality="high",
         n=1,
@@ -295,19 +314,18 @@ def generate_images_for_product(listing_data, product_data=None, log_callback=No
     
     provider_name = "Gemini" if image_provider == "gemini" else "OpenAI"
     
-    # Download reference images from supplier (only for Gemini)
+    # Download reference images from supplier (for both Gemini and OpenAI)
     ref_images = []
-    if image_provider == "gemini":
-        source_images = (product_data or {}).get("images", [])
-        if source_images:
-            if log_callback:
-                log_callback(f"📷 Downloading {min(len(source_images), 3)} reference images from supplier...")
-            ref_images = download_reference_images(source_images, max_images=3)
-            if log_callback:
-                log_callback(f"✅ Downloaded {len(ref_images)} reference images")
-        else:
-            if log_callback:
-                log_callback("⚠️ No reference images found from supplier")
+    source_images = (product_data or {}).get("images", [])
+    if source_images:
+        if log_callback:
+            log_callback(f"📷 Downloading {min(len(source_images), 3)} reference images from supplier...")
+        ref_images = download_reference_images(source_images, max_images=3)
+        if log_callback:
+            log_callback(f"✅ Downloaded {len(ref_images)} reference images")
+    else:
+        if log_callback:
+            log_callback("⚠️ No reference images found from supplier")
     
     prompt1 = listing_data.get("image_prompt_1", "")
     prompt2 = listing_data.get("image_prompt_2", "")
@@ -324,7 +342,7 @@ def generate_images_for_product(listing_data, product_data=None, log_callback=No
                 log_callback(f"🎨 Generating image {idx} ({label}) with {provider_name}...")
             
             if image_provider == "openai":
-                img = generate_product_image_openai(prompt)
+                img = generate_product_image_openai(prompt, ref_images)
             else:
                 img = generate_product_image(prompt, ref_images)
             
