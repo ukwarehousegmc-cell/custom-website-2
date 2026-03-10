@@ -9,4 +9,4 @@ COPY . .
 
 ENV PORT=8080
 EXPOSE 8080
-CMD python -c "import app; print('App imported OK')" && gunicorn --bind 0.0.0.0:$PORT --timeout 300 --workers 2 --log-level debug app:app
+CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:${PORT} --timeout 300 --workers 2 --log-level debug app:app"]
