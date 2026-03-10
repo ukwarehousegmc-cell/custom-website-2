@@ -81,7 +81,33 @@ IMPORTANT:
 - body_html must be valid HTML
 - Include ALL variants found in the data
 - If only one variant/size, still create one variant entry
-- Generate detailed image prompts following the image rules (real-life use, 1000x1000, no text, no logos, no installation scenes)
+- Generate detailed image prompts following these STRICT image rules:
+
+IMAGE PROMPT 1 (PRIMARY — Real-Life Application):
+- Show the product in REAL USE in an authentic location (warehouse, parking lot, industrial site, workshop, etc.)
+- Product must dominate 50-70% of the frame
+- 1000x1000 px (1:1 aspect ratio)
+- NO installation scenes, NO hands installing, NO tools, NO setup process
+- Preserve exact product details: materials, colors, finishes, dimensions, proportions, structural elements, textures
+- No text, labels, captions, or markings on image
+- No studio backgrounds — must be authentic real-world environment
+- Sharp focus on product, slightly softer background, realistic professional lighting
+- No logos, no branding, no company names
+- SMALL PRODUCT RULE (under 10cm): Use macro close-up, product fills 70-85% of frame, soft blurred background
+- ACCESSORY RULE: If product is small add-on/accessory, describe a split image — main use-case shot + macro detail panel showing texture/edges/finish
+- People only if needed for scale — small, non-distracting, natural, NOT installing
+
+IMAGE PROMPT 2 (USE CASE — Real-World Application):
+- Show product ACTIVELY performing its intended purpose
+- 1000x1000 px (1:1 aspect ratio)
+- Documentary-style photography, medium or wide framing
+- Demonstrate what the product DOES (e.g., speed bump with car driving over, bollard restricting entry, rack with items stored)
+- Viewer should instantly understand: what it does, why it's useful, how it improves workflow/safety
+- Must be real industrial/workplace environment, active and natural
+- People ENCOURAGED — natural interaction, correct attire, must not block product
+- No installation or setup scenes
+- No logos, no branding, no text overlays
+- Realistic environmental lighting, no staged studio look
 """
 
 
