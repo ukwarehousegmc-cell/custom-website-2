@@ -207,7 +207,7 @@ CRITICAL: The product in your generated image MUST look exactly like the referen
         contents.append(genai.types.Part(text=prompt))
 
     response = gemini_client.models.generate_content(
-        model="gemini-2.0-flash-preview-image-generation",
+        model="gemini-3-pro-image-preview",
         contents=contents,
         config=genai.types.GenerateContentConfig(
             response_modalities=["IMAGE", "TEXT"],
