@@ -1,9 +1,10 @@
 """
-Scraper module — extracts products from any website collection page.
-Uses requests + BeautifulSoup. Handles pagination.
+Scraper module — extracts products from website collection pages.
+Uses Shopify JSON API when available, falls back to HTML scraping.
 """
 
 import re
+import json
 import time
 import requests
 from bs4 import BeautifulSoup
@@ -24,18 +25,127 @@ def get_soup(url, session=None):
     return BeautifulSoup(resp.text, "lxml"), s
 
 
+# ─── Shopify JSON API approach (preferred) ───
+
+def try_shopify_json(collection_url, session=None):
+    """
+    Try to get products via Shopify's /products.json endpoint.
+    Returns list of product dicts or None if not a Shopify store.
+    """
+    s = session or requests.Session()
+    parsed = urlparse(collection_url)
+    base = f"{parsed.scheme}://{parsed.netloc}"
+    path = parsed.path.rstrip("/")
+    
+    # Try /collections/xxx/products.json
+    json_url = f"{base}{path}/products.json?limit=250"
+    
+    try:
+        resp = s.get(json_url, headers=HEADERS, timeout=30)
+        if resp.status_code == 200:
+            data = resp.json()
+            if "products" in data:
+                return data["products"], s
+    except Exception:
+        pass
+    
+    return None, s
+
+
+def scrape_shopify_product(product_json, base_url, collection_name, website_name):
+    """Convert Shopify JSON product data into our standard format."""
+    data = {
+        "url": f"{base_url}/products/{product_json['handle']}",
+        "title": product_json.get("title", ""),
+        "description": "",
+        "prices": [],
+        "images": [],
+        "tables": [],
+        "variants": [],
+        "breadcrumbs": [],
+        "full_text": "",
+    }
+    
+    # Description (HTML)
+    body_html = product_json.get("body_html", "") or ""
+    if body_html:
+        soup = BeautifulSoup(body_html, "lxml")
+        data["description"] = soup.get_text(separator="\n", strip=True)
+        
+        # Extract tables from description
+        for table in soup.find_all("table"):
+            rows = []
+            for tr in table.find_all("tr"):
+                cells = [td.get_text(strip=True) for td in tr.find_all(["td", "th"])]
+                if cells:
+                    rows.append(cells)
+            if rows:
+                data["tables"].append(rows)
+        
+        data["full_text"] = data["description"]
+    
+    # Images
+    for img in product_json.get("images", []):
+        src = img.get("src", "")
+        if src:
+            data["images"].append(src)
+    
+    # Prices
+    for variant in product_json.get("variants", []):
+        price = variant.get("price")
+        if price:
+            data["prices"].append(f"£{price}")
+    data["prices"] = list(set(data["prices"]))
+    
+    # Variants — extract option names and values
+    options = product_json.get("options", [])
+    for opt in options:
+        opt_name = opt.get("name", "")
+        opt_values = opt.get("values", [])
+        if opt_values and not (len(opt_values) == 1 and opt_values[0].lower() in ["default title", "default"]):
+            data["variants"].append({
+                "label": opt_name,
+                "options": opt_values,
+            })
+    
+    # Also store raw variant data for AI to use
+    raw_variants = []
+    for v in product_json.get("variants", []):
+        rv = {
+            "title": v.get("title", ""),
+            "price": v.get("price", ""),
+            "sku": v.get("sku", ""),
+            "option1": v.get("option1"),
+            "option2": v.get("option2"),
+            "option3": v.get("option3"),
+        }
+        raw_variants.append(rv)
+    data["raw_variants"] = raw_variants
+    
+    # Product type & tags from JSON
+    data["product_type"] = product_json.get("product_type", "")
+    data["vendor"] = product_json.get("vendor", "")
+    data["tags"] = product_json.get("tags", [])
+    if isinstance(data["tags"], str):
+        data["tags"] = [t.strip() for t in data["tags"].split(",")]
+    
+    return data
+
+
+# ─── HTML scraping fallback ───
+
 def extract_product_links(soup, base_url):
     """Extract product links ONLY from the main collection grid.
     Ignores recently viewed, recommended, related products sections."""
     links = set()
     
-    # Sections to EXCLUDE — recently viewed, recommended, related, etc.
+    # Sections to EXCLUDE
     exclude_patterns = re.compile(
         r"recent|recommend|related|also.like|you.may|featured|trending|best.sell|popular|cross.sell|upsell|viewed|suggested",
         re.I
     )
     
-    # Remove excluded sections from soup before extracting
+    # Remove excluded sections
     sections_to_remove = []
     for section in soup.find_all(["section", "div", "aside"]):
         try:
@@ -55,53 +165,24 @@ def extract_product_links(soup, base_url):
         except Exception:
             pass
     
-    # Now extract product links from the cleaned page
-    # First try: find main collection/product grid container
-    main_grid = soup.find(class_=re.compile(
-        r"collection.?product|product.?grid|product.?list|collection.?grid|category.?product|main.?product|product.?container",
-        re.I
-    ))
-    
-    search_area = main_grid if main_grid else soup
-    
-    for a in search_area.find_all("a", href=True):
+    # Extract product links
+    for a in soup.find_all("a", href=True):
         href = a["href"]
         full = urljoin(base_url, href)
         if any(p in href.lower() for p in ["/product/", "/products/", "/p/", "/-p-", "/item/"]):
             links.add(full)
-    
-    # Fallback: if no product links found in grid, search broader but still exclude junk
-    if not links:
-        for a in soup.find_all("a", href=True):
-            href = a["href"]
-            full = urljoin(base_url, href)
-            if any(p in href.lower() for p in ["/product/", "/products/", "/p/", "/-p-", "/item/"]):
-                links.add(full)
-    
-    # Last resort: look in card/item containers
-    if not links:
-        containers = soup.find_all(class_=re.compile(
-            r"product|item|card|grid-item|listing", re.I
-        ))
-        for container in containers:
-            for a in container.find_all("a", href=True):
-                full = urljoin(base_url, a["href"])
-                if full != base_url and urlparse(full).netloc == urlparse(base_url).netloc:
-                    links.add(full)
     
     return list(links)
 
 
 def find_next_page(soup, base_url):
     """Find next page URL if pagination exists."""
-    # Look for next page link
     for a in soup.find_all("a", href=True):
         text = a.get_text(strip=True).lower()
         classes = " ".join(a.get("class", [])).lower()
         if "next" in text or "next" in classes or "›" in text or "»" in text:
             return urljoin(base_url, a["href"])
     
-    # Check for rel="next"
     link = soup.find("a", rel="next")
     if link and link.get("href"):
         return urljoin(base_url, link["href"])
@@ -110,9 +191,27 @@ def find_next_page(soup, base_url):
 
 
 def scrape_product_page(url, session=None):
-    """Scrape a single product page and extract all available data."""
-    soup, session = get_soup(url, session)
-    data = {"url": url, "raw_html": str(soup)}
+    """Scrape a single product page via HTML and extract all available data."""
+    s = session or requests.Session()
+    
+    # First try Shopify product JSON
+    parsed = urlparse(url)
+    json_url = f"{parsed.scheme}://{parsed.netloc}{parsed.path.rstrip('/')}.json"
+    
+    try:
+        resp = s.get(json_url, headers=HEADERS, timeout=30)
+        if resp.status_code == 200:
+            pdata = resp.json().get("product")
+            if pdata:
+                base_url = f"{parsed.scheme}://{parsed.netloc}"
+                result = scrape_shopify_product(pdata, base_url, "", "")
+                return result, s
+    except Exception:
+        pass
+    
+    # Fallback to HTML scraping
+    soup, s = get_soup(url, s)
+    data = {"url": url}
     
     # Title
     h1 = soup.find("h1")
@@ -124,7 +223,6 @@ def scrape_product_page(url, session=None):
         text = el.get_text(strip=True)
         found = re.findall(r"£[\d,]+\.?\d*", text)
         prices.extend(found)
-    # Also check meta
     meta_price = soup.find("meta", {"property": "product:price:amount"})
     if meta_price:
         prices.append(f"£{meta_price['content']}")
@@ -136,11 +234,6 @@ def scrape_product_page(url, session=None):
         src = urljoin(url, img["src"])
         if any(p in src.lower() for p in ["product", "upload", "media", "image"]):
             images.append(src)
-    # Also data-src, data-zoom
-    for img in soup.find_all(attrs={"data-src": True}):
-        images.append(urljoin(url, img["data-src"]))
-    for img in soup.find_all(attrs={"data-zoom-image": True}):
-        images.append(urljoin(url, img["data-zoom-image"]))
     data["images"] = list(set(images))
     
     # Description
@@ -152,7 +245,7 @@ def scrape_product_page(url, session=None):
             descriptions.append(text)
     data["description"] = "\n\n".join(descriptions) if descriptions else ""
     
-    # Specifications / tables
+    # Tables
     tables = []
     for table in soup.find_all("table"):
         rows = []
@@ -164,44 +257,25 @@ def scrape_product_page(url, session=None):
             tables.append(rows)
     data["tables"] = tables
     
-    # Variants / dropdowns
+    # Variants
     variants = []
     for select in soup.find_all("select"):
         label = ""
         sel_id = select.get("id", "")
         sel_name = select.get("name", "")
-        # Find associated label
         if sel_id:
             lbl = soup.find("label", {"for": sel_id})
             if lbl:
                 label = lbl.get_text(strip=True)
         if not label:
             label = sel_name
-        
         options = []
         for opt in select.find_all("option"):
             val = opt.get_text(strip=True)
             if val and val.lower() not in ["select", "choose", "please select", "--"]:
                 options.append(val)
-        
         if options:
             variants.append({"label": label, "options": options})
-    
-    # Radio buttons / swatches
-    for fieldset in soup.find_all(["fieldset", "div"], class_=re.compile(r"variant|option|swatch", re.I)):
-        label_el = fieldset.find(["legend", "label", "span"], class_=re.compile(r"label|title|name", re.I))
-        label = label_el.get_text(strip=True) if label_el else ""
-        options = []
-        for inp in fieldset.find_all("input", {"type": ["radio", "checkbox"]}):
-            val = inp.get("value", "") or inp.get("title", "")
-            lbl = fieldset.find("label", {"for": inp.get("id", "")})
-            if lbl:
-                val = lbl.get_text(strip=True)
-            if val:
-                options.append(val)
-        if options:
-            variants.append({"label": label, "options": options})
-    
     data["variants"] = variants
     
     # Breadcrumbs
@@ -211,16 +285,56 @@ def scrape_product_page(url, session=None):
             breadcrumbs.append(a.get_text(strip=True))
     data["breadcrumbs"] = breadcrumbs
     
-    # Full page text for AI context
+    # Full text
     body = soup.find("body")
     data["full_text"] = body.get_text(separator="\n", strip=True)[:15000] if body else ""
     
-    return data, session
+    return data, s
 
+
+# ─── Main scrape function ───
 
 def scrape_collection(collection_url, progress_callback=None):
     """Scrape all products from a collection URL. Returns list of product data dicts."""
     session = requests.Session()
+    parsed = urlparse(collection_url)
+    base_url = f"{parsed.scheme}://{parsed.netloc}"
+    
+    # Extract collection name from URL
+    path = parsed.path.strip("/")
+    collection_name = path.split("/")[-1].replace("-", " ").title()
+    website_name = parsed.netloc.replace("www.", "")
+    
+    # ── Try Shopify JSON API first ──
+    if progress_callback:
+        progress_callback("🔍 Trying Shopify JSON API...")
+    
+    shopify_products, session = try_shopify_json(collection_url, session)
+    
+    if shopify_products is not None:
+        if progress_callback:
+            progress_callback(f"✅ Shopify API found! {len(shopify_products)} products in collection")
+        
+        products = []
+        for i, sp in enumerate(shopify_products):
+            if progress_callback:
+                progress_callback(f"📦 Processing {i+1}/{len(shopify_products)}: {sp.get('title', 'Unknown')}")
+            
+            product_data = scrape_shopify_product(sp, base_url, collection_name, website_name)
+            products.append(product_data)
+        
+        return {
+            "collection_url": collection_url,
+            "collection_name": collection_name,
+            "website_name": website_name,
+            "total_products": len(products),
+            "products": products,
+        }
+    
+    # ── Fallback to HTML scraping ──
+    if progress_callback:
+        progress_callback("⚠️ Not a Shopify store or JSON API unavailable. Using HTML scraping...")
+    
     all_product_links = []
     page_url = collection_url
     page_num = 1
@@ -242,11 +356,11 @@ def scrape_collection(collection_url, progress_callback=None):
         if next_page and next_page != page_url:
             page_url = next_page
             page_num += 1
-            time.sleep(1)  # Be polite
+            time.sleep(1)
         else:
             break
     
-    # Now scrape each product
+    # Scrape each product page
     products = []
     for i, link in enumerate(all_product_links):
         if progress_callback:
@@ -261,14 +375,10 @@ def scrape_collection(collection_url, progress_callback=None):
                 progress_callback(f"Error scraping {link}: {e}")
             products.append({"url": link, "error": str(e)})
     
-    # Extract collection name from URL
-    path = urlparse(collection_url).path.strip("/")
-    collection_name = path.split("/")[-1].replace("-", " ").title()
-    
     return {
         "collection_url": collection_url,
         "collection_name": collection_name,
-        "website_name": urlparse(collection_url).netloc.replace("www.", ""),
+        "website_name": website_name,
         "total_products": len(products),
         "products": products,
     }
