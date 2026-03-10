@@ -185,14 +185,32 @@ def generate_product_image(prompt, reference_images=None):
     # Build content parts: reference images + text prompt
     contents = []
     
-    # Imagen 3 only accepts text prompts, so we pass the full prompt directly
-    contents = [genai.types.Part(text=prompt)]
+    if reference_images:
+        for ref in reference_images:
+            contents.append(genai.types.Part(
+                inline_data=genai.types.Blob(
+                    mime_type=ref["mime"],
+                    data=ref["data"],
+                )
+            ))
+        contents.append(genai.types.Part(
+            text=f"""Above are the REFERENCE IMAGES of the actual product from the supplier website.
+Study them carefully — the product's exact shape, color, material, texture, proportions, and all details.
+
+Now generate a NEW image based on these rules:
+
+{prompt}
+
+CRITICAL: The product in your generated image MUST look exactly like the reference images above — same shape, same color, same material, same proportions. Do NOT simplify or change any detail."""
+        ))
+    else:
+        contents.append(genai.types.Part(text=prompt))
 
     response = gemini_client.models.generate_content(
-        model="imagen-3.0-generate-002",
-        contents=contents[-1].text if contents else prompt,  # Imagen takes text only
+        model="gemini-2.5-flash-preview-image-generation",
+        contents=contents,
         config=genai.types.GenerateContentConfig(
-            response_modalities=["IMAGE"],
+            response_modalities=["IMAGE", "TEXT"],
         ),
     )
 
