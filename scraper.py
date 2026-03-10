@@ -36,14 +36,24 @@ def extract_product_links(soup, base_url):
     )
     
     # Remove excluded sections from soup before extracting
+    sections_to_remove = []
     for section in soup.find_all(["section", "div", "aside"]):
-        classes = " ".join(section.get("class", []))
-        section_id = section.get("id", "")
-        heading = section.find(["h2", "h3", "h4"])
-        heading_text = heading.get_text(strip=True) if heading else ""
-        
-        if exclude_patterns.search(classes) or exclude_patterns.search(section_id) or exclude_patterns.search(heading_text):
-            section.decompose()  # Remove from DOM
+        try:
+            classes = " ".join(section.get("class") or [])
+            section_id = section.get("id") or ""
+            heading = section.find(["h2", "h3", "h4"])
+            heading_text = heading.get_text(strip=True) if heading else ""
+            
+            if exclude_patterns.search(classes) or exclude_patterns.search(section_id) or exclude_patterns.search(heading_text):
+                sections_to_remove.append(section)
+        except Exception:
+            continue
+    
+    for section in sections_to_remove:
+        try:
+            section.decompose()
+        except Exception:
+            pass
     
     # Now extract product links from the cleaned page
     # First try: find main collection/product grid container
