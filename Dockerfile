@@ -7,5 +7,6 @@ RUN pip install --no-cache-dir --retries 5 --timeout 60 -r requirements.txt
 
 COPY . .
 
+ENV PORT=8080
 EXPOSE 8080
-CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--timeout", "300", "--workers", "2", "app:app"]
+CMD python -c "import app; print('App imported OK')" && gunicorn --bind 0.0.0.0:$PORT --timeout 300 --workers 2 --log-level debug app:app
