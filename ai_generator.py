@@ -189,7 +189,16 @@ def generate_product_image_openai(prompt):
     if not client:
         init_openai()
 
-    full_prompt = f"{prompt}\n\nIMAGE SIZE: The image MUST be exactly 1000 x 1000 pixels with 1:1 aspect ratio (square)."
+    full_prompt = f"""{prompt}
+
+CRITICAL RULES FOR IMAGE GENERATION:
+1. The product must be PHYSICALLY IDENTICAL to the reference — exact same shape, color, material, texture, dimensions, every detail must match 100%. This is an AI-rendered version of the real product, NOT a redesign.
+2. DO NOT change anything about the product itself — no simplification, no missing parts, no altered colors or proportions.
+3. The USE-CASE ENVIRONMENT must be COMPLETELY DIFFERENT from the reference website — different location, different setting, different scene.
+4. The CAMERA ANGLE must be DIFFERENT from the reference website — if reference shows front view, show a 3/4 angle or side view. Never copy the same angle.
+5. The image must look like a professional AI-rendered product photo — photorealistic, high quality, natural lighting.
+6. No text, no logos, no branding, no labels on the image.
+7. IMAGE SIZE: exactly 1000 x 1000 pixels with 1:1 aspect ratio (square)."""
 
     response = client.images.generate(
         model="gpt-image-1.5",
