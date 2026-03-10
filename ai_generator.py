@@ -212,32 +212,51 @@ OTHER RULES:
 - No text, no logos, no branding, no labels on the image.
 - IMAGE SIZE: exactly 1000 x 1000 pixels, 1:1 square aspect ratio."""
 
-    # Build image inputs from reference images
-    image_inputs = []
+    # If reference images available, use chat completions with image input for better accuracy
     if reference_images:
+        messages = [
+            {"role": "system", "content": "You are a product image generator. Generate exactly one image based on the reference product images and the prompt provided."},
+            {"role": "user", "content": []}
+        ]
+        
+        # Add reference images
         for ref in reference_images:
             img_b64 = base64.b64encode(ref["data"]).decode("utf-8")
-            image_inputs.append({
-                "type": "input_image",
-                "input_image": {
-                    "image_data": img_b64,
-                    "media_type": ref["mime"],
-                },
+            messages[1]["content"].append({
+                "type": "image_url",
+                "image_url": {"url": f"data:{ref['mime']};base64,{img_b64}"}
             })
-
-    # Add text prompt
-    image_inputs.append({
-        "type": "text",
-        "text": full_prompt,
-    })
-
-    response = client.images.generate(
-        model="gpt-image-1.5",
-        prompt=image_inputs,
-        size="1024x1024",
-        quality="high",
-        n=1,
-    )
+        
+        # Add text prompt
+        messages[1]["content"].append({
+            "type": "text",
+            "text": full_prompt
+        })
+        
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=messages,
+            max_tokens=100,
+        )
+        
+        # Extract image description from GPT-4o, then generate with gpt-image-1.5
+        enhanced_prompt = response.choices[0].message.content + "\n\n" + full_prompt
+        
+        response = client.images.generate(
+            model="gpt-image-1.5",
+            prompt=enhanced_prompt[:4000],
+            size="1024x1024",
+            quality="high",
+            n=1,
+        )
+    else:
+        response = client.images.generate(
+            model="gpt-image-1.5",
+            prompt=full_prompt,
+            size="1024x1024",
+            quality="high",
+            n=1,
+        )
 
     # gpt-image returns base64 data
     image_b64 = response.data[0].b64_json
