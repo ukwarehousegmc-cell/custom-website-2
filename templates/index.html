@@ -560,13 +560,23 @@
                     <input type="password" id="clientSecret" placeholder="Shopify API Client Secret">
                 </div>
                 <div class="field">
-                    <div class="toggle-row">
+                    <div class="toggle-row" style="margin-bottom:10px;">
                         <div>
-                            <div class="toggle-label">Generate AI Images</div>
-                            <div class="toggle-sub">Uses Gemini to create product photos</div>
+                            <div class="toggle-label">🟣 Gemini Image Generation</div>
+                            <div class="toggle-sub">Uses Gemini 2.5 Flash — Free / very cheap</div>
                         </div>
                         <label class="toggle">
-                            <input type="checkbox" id="generateImages" checked>
+                            <input type="checkbox" id="geminiImages" checked onchange="handleImageToggle('gemini')">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="toggle-row">
+                        <div>
+                            <div class="toggle-label">🟢 OpenAI Image Generation</div>
+                            <div class="toggle-sub">Uses GPT Image 1.5 — Higher quality, paid</div>
+                        </div>
+                        <label class="toggle">
+                            <input type="checkbox" id="openaiImages" onchange="handleImageToggle('openai')">
                             <span class="toggle-slider"></span>
                         </label>
                     </div>
@@ -658,6 +668,22 @@
             }
         });
 
+        function handleImageToggle(source) {
+            const gemini = document.getElementById('geminiImages');
+            const openai = document.getElementById('openaiImages');
+            if (source === 'gemini' && gemini.checked) {
+                openai.checked = false;
+            } else if (source === 'openai' && openai.checked) {
+                gemini.checked = false;
+            }
+        }
+
+        function getImageProvider() {
+            if (document.getElementById('openaiImages').checked) return 'openai';
+            if (document.getElementById('geminiImages').checked) return 'gemini';
+            return 'none';
+        }
+
         function saveConfig() {
             localStorage.setItem('shopify_config', JSON.stringify({
                 store: document.getElementById('store').value,
@@ -703,7 +729,8 @@
             const store = document.getElementById('store').value.trim();
             const clientId = document.getElementById('clientId').value.trim();
             const clientSecret = document.getElementById('clientSecret').value.trim();
-            const genImages = document.getElementById('generateImages').checked;
+            const imageProvider = getImageProvider();
+            const genImages = imageProvider !== 'none';
 
             if (!url || !store || !clientId || !clientSecret) return alert('Please fill in all fields');
 
@@ -718,7 +745,8 @@
                     body: JSON.stringify({
                         collection_url: url, store,
                         client_id: clientId, client_secret: clientSecret,
-                        generate_images: genImages
+                        generate_images: genImages,
+                        image_provider: imageProvider
                     })
                 });
                 const data = await resp.json();

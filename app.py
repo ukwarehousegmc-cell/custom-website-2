@@ -25,13 +25,14 @@ jobs = {}
 
 
 class Job:
-    def __init__(self, job_id, collection_url, store, client_id, client_secret, generate_images=True):
+    def __init__(self, job_id, collection_url, store, client_id, client_secret, generate_images=True, image_provider="gemini"):
         self.id = job_id
         self.collection_url = collection_url
         self.store = store
         self.client_id = client_id
         self.client_secret = client_secret
         self.generate_images = generate_images
+        self.image_provider = image_provider
         self.status = "pending"
         self.logs = []
         self.products_total = 0
@@ -126,9 +127,9 @@ def process_job(job):
                 # Generate images
                 images = []
                 if job.generate_images:
-                    job.log("🎨 Generating product images with Gemini...")
+                    job.log(f"🎨 Generating product images with {job.image_provider.title()}...")
                     try:
-                        images = generate_images_for_product(listing, product_data=product_data, log_callback=job.log)
+                        images = generate_images_for_product(listing, product_data=product_data, log_callback=job.log, image_provider=job.image_provider)
                         job.log(f"✅ Generated {len(images)} images total")
                     except Exception as e:
                         job.log(f"⚠️ Image generation failed: {e} — continuing without images")
@@ -186,12 +187,13 @@ def start_job():
     client_id = data.get("client_id", "").strip()
     client_secret = data.get("client_secret", "").strip()
     generate_images = data.get("generate_images", True)
+    image_provider = data.get("image_provider", "gemini")
 
     if not all([collection_url, store, client_id, client_secret]):
         return jsonify({"error": "All fields are required"}), 400
 
     job_id = f"job_{int(time.time())}"
-    job = Job(job_id, collection_url, store, client_id, client_secret, generate_images)
+    job = Job(job_id, collection_url, store, client_id, client_secret, generate_images, image_provider)
     jobs[job_id] = job
 
     # Start background thread
