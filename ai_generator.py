@@ -25,10 +25,10 @@ STRICT RULES:
 
 2. DESCRIPTION in this exact order:
    - Short Description (3-4 lines, NO heading above it — just the text directly, no "Short Description" heading)
+   - Specifications (with heading)
    - Features (with heading)
    - Benefits (with heading)
    - Use Cases (with heading)
-   - Specifications / Technical Details (with heading)
    - FAQ (2-3 Q&As, last section)
 
 3. SPECIFICATIONS: Extract ALL technical data from the source. Rewrite in your own words. Include ALL measurements. Use structured format.
@@ -48,7 +48,7 @@ STRICT RULES:
 OUTPUT FORMAT — Return valid JSON:
 {
   "title": "Product Title Following The Rule",
-  "body_html": "<p>Short description text here without any heading...</p><h3>Features</h3><ul>...</ul><h3>Benefits</h3><p>...</p><h3>Use Cases</h3><p>...</p><h3>Specifications</h3><p>...</p><h3>FAQ</h3><p>...</p>",
+  "body_html": "<p>Short description text here without any heading...</p><h3>Specifications</h3><p>...</p><h3>Features</h3><ul>...</ul><h3>Benefits</h3><p>...</p><h3>Use Cases</h3><p>...</p><h3>FAQ</h3><p>...</p>",
   "product_type": "Collection Name",
   "tags": ["tag1", "tag2", "tag3"],
   "variants": [
