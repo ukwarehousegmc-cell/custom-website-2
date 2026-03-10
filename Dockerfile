@@ -7,4 +7,5 @@ RUN pip install --no-cache-dir --retries 5 --timeout 60 -r requirements.txt
 
 COPY . .
 
-CMD ["python", "app.py"]
+EXPOSE 8080
+CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--timeout", "300", "--workers", "2", "app:app"]
