@@ -294,6 +294,17 @@
             color: var(--text);
             border-color: var(--border-hover);
         }
+        .btn-stop {
+            padding: 8px 18px;
+            font-size: 12px;
+            background: var(--error-bg);
+            color: var(--error);
+            border: 1px solid rgba(255, 107, 107, 0.2);
+        }
+        .btn-stop:hover {
+            background: rgba(255, 107, 107, 0.15);
+            border-color: rgba(255, 107, 107, 0.4);
+        }
 
         /* Preview */
         .preview-box {
@@ -414,6 +425,7 @@
         .badge-processing { background: var(--success-bg); color: var(--success); }
         .badge-completed { background: var(--success-bg); color: var(--success); }
         .badge-error { background: var(--error-bg); color: var(--error); }
+        .badge-stopped { background: rgba(255, 217, 61, 0.1); color: var(--warning); }
         .badge-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 
         /* Log Terminal */
@@ -579,10 +591,13 @@
                     <div class="card-icon icon-progress">📊</div>
                     Progress
                 </div>
-                <span class="badge badge-pending" id="statusBadge">
-                    <span class="badge-dot"></span>
-                    Pending
-                </span>
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <button class="btn btn-stop" id="stopBtn" onclick="stopJob()" style="display:none;">🛑 Stop</button>
+                    <span class="badge badge-pending" id="statusBadge">
+                        <span class="badge-dot"></span>
+                        Pending
+                    </span>
+                </div>
             </div>
 
             <div class="stats-grid">
@@ -715,10 +730,21 @@
                 }
 
                 currentJobId = data.job_id;
+                document.getElementById('stopBtn').style.display = 'inline-flex';
                 pollInterval = setInterval(pollStatus, 2000);
             } catch(e) {
                 alert('Failed to start: ' + e.message);
                 document.getElementById('startBtn').disabled = false;
+            }
+        }
+
+        async function stopJob() {
+            if (!currentJobId) return;
+            try {
+                await fetch(`/api/stop/${currentJobId}`, { method: 'POST' });
+                document.getElementById('stopBtn').style.display = 'none';
+            } catch(e) {
+                console.error('Stop error:', e);
             }
         }
 
@@ -776,9 +802,10 @@
                     }).join('');
                 }
 
-                if (data.status === 'completed' || data.status === 'error') {
+                if (data.status === 'completed' || data.status === 'error' || data.status === 'stopped') {
                     clearInterval(pollInterval);
                     document.getElementById('startBtn').disabled = false;
+                    document.getElementById('stopBtn').style.display = 'none';
                 }
             } catch(e) {
                 console.error('Poll error:', e);

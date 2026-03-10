@@ -40,6 +40,7 @@ class Job:
         self.results = []
         self.started_at = None
         self.finished_at = None
+        self.stopped = False
 
     def log(self, message):
         entry = f"[{datetime.now().strftime('%H:%M:%S')}] {message}"
@@ -98,6 +99,12 @@ def process_job(job):
         # Process each product
         job.status = "processing"
         for i, product_data in enumerate(products):
+            if job.stopped:
+                job.status = "stopped"
+                job.log("🛑 Job stopped by user")
+                job.finished_at = datetime.now().isoformat()
+                return
+
             if product_data.get("error"):
                 job.log(f"❌ Skipping product {i+1}: {product_data['error']}")
                 job.products_failed += 1
@@ -200,6 +207,16 @@ def job_status(job_id):
     if not job:
         return jsonify({"error": "Job not found"}), 404
     return jsonify(job.to_dict())
+
+
+@app.route("/api/stop/<job_id>", methods=["POST"])
+def stop_job(job_id):
+    job = jobs.get(job_id)
+    if not job:
+        return jsonify({"error": "Job not found"}), 404
+    job.stopped = True
+    job.log("🛑 Stop requested...")
+    return jsonify({"message": "Stop signal sent"})
 
 
 @app.route("/api/jobs")
