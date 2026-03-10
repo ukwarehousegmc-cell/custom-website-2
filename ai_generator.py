@@ -49,7 +49,14 @@ STRICT RULES:
 
 8. INVENTORY: Always disabled.
 
-9. DO NOT INCLUDE: Brand names, website names, emails, phones, shipping info, links, image URLs.
+9. DO NOT INCLUDE (VERY IMPORTANT — STRICTLY FORBIDDEN):
+   - ANY brand names from the reference website (manufacturer names, supplier names, store names)
+   - The reference website name or domain
+   - Emails, phone numbers, shipping details
+   - Links, image URLs, download links
+   - Do NOT mention the source/supplier brand ANYWHERE — not in title, description, tags, features, specs, or FAQ
+   - If the original product title contains a brand name, REMOVE it and rewrite without it
+   - Replace brand references with generic terms (e.g., "premium quality" instead of brand name)
 
 OUTPUT FORMAT — Return valid JSON:
 {
