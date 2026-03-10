@@ -135,7 +135,7 @@ def generate_product_image(prompt):
         init_gemini()
 
     response = gemini_client.models.generate_content(
-        model="gemini-2.0-flash-exp",
+        model="gemini-2.0-flash-exp-image-generation",
         contents=prompt,
         config=genai.types.GenerateContentConfig(
             response_modalities=["IMAGE", "TEXT"],
