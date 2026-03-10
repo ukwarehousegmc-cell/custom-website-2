@@ -124,24 +124,27 @@ FULL PAGE TEXT (for additional context):
 
 
 def generate_product_image(prompt, size="1024x1024"):
-    """Generate a product image using DALL-E 3."""
+    """Generate a product image using GPT Image 1 (gpt-image-1)."""
     if not client:
         init_openai()
 
     response = client.images.generate(
-        model="dall-e-3",
+        model="gpt-image-1",
         prompt=prompt,
         size=size,
-        quality="hd",
+        quality="high",
         n=1,
     )
 
-    image_url = response.data[0].url
+    # gpt-image-1 returns base64 data
+    image_b64 = response.data[0].b64_json
+    if image_b64:
+        return base64.b64decode(image_b64)
     
-    # Download the image
+    # Fallback to URL if provided
+    image_url = response.data[0].url
     img_response = requests.get(image_url, timeout=60)
     img_response.raise_for_status()
-    
     return img_response.content
 
 
