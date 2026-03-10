@@ -25,17 +25,50 @@ def get_soup(url, session=None):
 
 
 def extract_product_links(soup, base_url):
-    """Extract product links from a collection/category page."""
+    """Extract product links ONLY from the main collection grid.
+    Ignores recently viewed, recommended, related products sections."""
     links = set()
-    # Common patterns for product links
-    for a in soup.find_all("a", href=True):
+    
+    # Sections to EXCLUDE — recently viewed, recommended, related, etc.
+    exclude_patterns = re.compile(
+        r"recent|recommend|related|also.like|you.may|featured|trending|best.sell|popular|cross.sell|upsell|viewed|suggested",
+        re.I
+    )
+    
+    # Remove excluded sections from soup before extracting
+    for section in soup.find_all(["section", "div", "aside"]):
+        classes = " ".join(section.get("class", []))
+        section_id = section.get("id", "")
+        heading = section.find(["h2", "h3", "h4"])
+        heading_text = heading.get_text(strip=True) if heading else ""
+        
+        if exclude_patterns.search(classes) or exclude_patterns.search(section_id) or exclude_patterns.search(heading_text):
+            section.decompose()  # Remove from DOM
+    
+    # Now extract product links from the cleaned page
+    # First try: find main collection/product grid container
+    main_grid = soup.find(class_=re.compile(
+        r"collection.?product|product.?grid|product.?list|collection.?grid|category.?product|main.?product|product.?container",
+        re.I
+    ))
+    
+    search_area = main_grid if main_grid else soup
+    
+    for a in search_area.find_all("a", href=True):
         href = a["href"]
         full = urljoin(base_url, href)
-        # Match common product URL patterns
         if any(p in href.lower() for p in ["/product/", "/products/", "/p/", "/-p-", "/item/"]):
             links.add(full)
     
-    # If no product-specific links found, try finding links within product grid/list containers
+    # Fallback: if no product links found in grid, search broader but still exclude junk
+    if not links:
+        for a in soup.find_all("a", href=True):
+            href = a["href"]
+            full = urljoin(base_url, href)
+            if any(p in href.lower() for p in ["/product/", "/products/", "/p/", "/-p-", "/item/"]):
+                links.add(full)
+    
+    # Last resort: look in card/item containers
     if not links:
         containers = soup.find_all(class_=re.compile(
             r"product|item|card|grid-item|listing", re.I
