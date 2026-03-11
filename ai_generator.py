@@ -189,18 +189,18 @@ def generate_product_image_openai(prompt, reference_images=None):
     if not client:
         init_openai()
 
-    full_prompt = f"""Look at the reference product images provided. Now generate a NEW image following these rules:
+    full_prompt = f"""Look at the reference product image provided. Now generate a NEW image following these rules:
 
 {prompt}
 
 ABSOLUTE RULES — DO NOT BREAK ANY:
 
-PRODUCT (MUST BE 100% IDENTICAL TO REFERENCE IMAGES — ZERO CHANGES):
-- The product must look EXACTLY like the reference images — same color, same shape, same material, same finish.
+PRODUCT (MUST BE 100% IDENTICAL TO REFERENCE IMAGE — ZERO CHANGES):
+- The product must look EXACTLY like the reference image — same color, same shape, same material, same finish.
 - Every curve, edge, corner, hole, groove, ridge, fastener must match perfectly.
 - Same proportions and dimensions — do NOT make it bigger, smaller, thicker, or thinner.
 - Same surface texture — matte stays matte, glossy stays glossy, brushed stays brushed.
-- This is the SAME physical product from the reference images, just in a different place.
+- This is the SAME physical product from the reference image, just in a different place.
 
 WHAT MUST BE DIFFERENT (ONLY THESE):
 - The ENVIRONMENT/LOCATION — completely different real-world setting than the reference.
@@ -215,7 +215,7 @@ OTHER RULES:
     # If reference images available, use chat completions with image input for better accuracy
     if reference_images:
         messages = [
-            {"role": "system", "content": "You are a product image generator. Generate exactly one image based on the reference product images and the prompt provided."},
+            {"role": "system", "content": "You are a product image generator. Generate exactly one image based on the reference product image and the prompt provided."},
             {"role": "user", "content": []}
         ]
         
@@ -287,14 +287,14 @@ def generate_product_image(prompt, reference_images=None):
                 )
             ))
         contents.append(genai.types.Part(
-            text=f"""Above are the REFERENCE IMAGES of the actual product from the supplier website.
-Study them carefully — the product's exact shape, color, material, texture, proportions, and all details.
+            text=f"""Above is the REFERENCE IMAGE of the actual product from the supplier website.
+Study it carefully — the product's exact shape, color, material, texture, proportions, and all details.
 
 Now generate a NEW image based on these rules:
 
 {prompt}
 
-CRITICAL: The product in your generated image MUST look exactly like the reference images above — same shape, same color, same material, same proportions. Do NOT simplify or change any detail.
+CRITICAL: The product in your generated image MUST look exactly like the reference image above — same shape, same color, same material, same proportions. Do NOT simplify or change any detail.
 
 IMAGE SIZE: The image MUST be exactly 1000 x 1000 pixels with 1:1 aspect ratio (square)."""
         ))
@@ -318,7 +318,10 @@ IMAGE SIZE: The image MUST be exactly 1000 x 1000 pixels with 1:1 aspect ratio (
 
 
 def generate_images_for_product(listing_data, product_data=None, log_callback=None, image_provider="gemini"):
-    """Generate both product images. image_provider: 'gemini' or 'openai'."""
+    """Generate both product images. Each image uses ONE reference image from the gallery.
+    Image 1: uses first gallery image as reference.
+    Image 2: uses second gallery image as reference.
+    Only one reference image is sent to AI at a time — never multiple together."""
     images = []
     
     if image_provider == "gemini" and not os.getenv("GEMINI_API_KEY"):
@@ -333,18 +336,7 @@ def generate_images_for_product(listing_data, product_data=None, log_callback=No
     
     provider_name = "Gemini" if image_provider == "gemini" else "OpenAI"
     
-    # Download reference images from supplier (for both Gemini and OpenAI)
-    ref_images = []
     source_images = (product_data or {}).get("images", [])
-    if source_images:
-        if log_callback:
-            log_callback(f"📷 Downloading {min(len(source_images), 3)} reference images from supplier...")
-        ref_images = download_reference_images(source_images, max_images=3)
-        if log_callback:
-            log_callback(f"✅ Downloaded {len(ref_images)} reference images")
-    else:
-        if log_callback:
-            log_callback("⚠️ No reference images found from supplier")
     
     prompt1 = listing_data.get("image_prompt_1", "")
     prompt2 = listing_data.get("image_prompt_2", "")
@@ -356,14 +348,34 @@ def generate_images_for_product(listing_data, product_data=None, log_callback=No
                 log_callback(f"⚠️ No image_prompt_{idx} in AI response — skipping image {idx}")
             continue
         
+        # Download ONE reference image for this specific generation
+        # Image 1 uses first gallery image, Image 2 uses second gallery image
+        ref_single = []
+        gallery_idx = idx - 1  # 0 for first image, 1 for second
+        if gallery_idx < len(source_images):
+            ref_url = source_images[gallery_idx]
+            if log_callback:
+                log_callback(f"📷 Downloading reference image {idx} from gallery (image {gallery_idx + 1}/{len(source_images)})...")
+            downloaded = download_reference_images([ref_url], max_images=1)
+            if downloaded:
+                ref_single = downloaded
+                if log_callback:
+                    log_callback(f"✅ Reference image {idx} downloaded")
+            else:
+                if log_callback:
+                    log_callback(f"⚠️ Failed to download reference image {idx}")
+        else:
+            if log_callback:
+                log_callback(f"⚠️ No gallery image {gallery_idx + 1} available — generating without reference")
+        
         try:
             if log_callback:
-                log_callback(f"🎨 Generating image {idx} ({label}) with {provider_name}...")
+                log_callback(f"🎨 Generating image {idx} ({label}) with {provider_name} using {'1 reference' if ref_single else 'no reference'}...")
             
             if image_provider == "openai":
-                img = generate_product_image_openai(prompt, ref_images)
+                img = generate_product_image_openai(prompt, ref_single if ref_single else None)
             else:
-                img = generate_product_image(prompt, ref_images)
+                img = generate_product_image(prompt, ref_single if ref_single else None)
             
             images.append({"data": img, "filename": f"product-{label}.png", "type": label})
             if log_callback:
