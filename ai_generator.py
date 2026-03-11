@@ -182,18 +182,11 @@ def generate_product_image_openai(prompt, reference_images=None):
     if not client:
         init_openai()
 
-    full_prompt = f"""You are generating product images for ecommerce listings.
-
-A reference image and the PRODUCT TITLE will be provided.
-
-IMPORTANT:
-The title refers to the exact product shown in the reference image.
-
-You must generate images ONLY for the product mentioned in the title.
+    full_prompt = f"""Use the provided reference image to recreate the SAME product.
 
 {prompt}
 
-CRITICAL PRODUCT RULE:
+CRITICAL RULE:
 The product must remain IDENTICAL to the reference image.
 
 Do NOT modify the product in any way.
@@ -217,20 +210,10 @@ HUMAN RULE:
 - If a person is shown, only ONE human is allowed in the image.
 - Do NOT include multiple people.
 - The human should interact naturally with the product.
-- The product must remain the main focus.
+- The product must remain the main focus, not the person.
 
-ENVIRONMENT RULE:
-Place the product in a realistic environment related to its use while keeping the product clearly visible.
-
-PRODUCT TITLE RULE:
-The generated image must correspond to the product mentioned in the title.
-Do not generate images for any other product.
-
-WORKFLOW RULE:
-Generate all required images for the current product first.
-After completing the images for the current product, only then move to the next product.
-
-Do NOT mix elements from different products.
+ENVIRONMENT RULES:
+Only change the background or environment to a realistic real-world usage scenario relevant to the product.
 
 STYLE:
 photorealistic
@@ -238,9 +221,9 @@ professional ecommerce product photography
 high detail
 realistic lighting and shadows
 
-OUTPUT REQUIREMENTS:
-1000 x 1000 px
+IMAGE REQUIREMENTS:
 square image
+1000 x 1000 px
 no text
 no logo
 no watermark"""
