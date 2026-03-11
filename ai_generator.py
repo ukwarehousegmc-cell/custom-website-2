@@ -90,34 +90,24 @@ IMPORTANT:
 - If only one variant/size, still create one variant entry
 - Generate detailed image prompts following these STRICT image rules:
 
-IMAGE PROMPT 1 (PRIMARY — Real-Life Application):
-- Show the product in REAL USE in an authentic location (warehouse, parking lot, industrial site, workshop, etc.)
-- Product must dominate 50-70% of the frame
+IMAGE PROMPT 1 (PRIMARY — Product in Environment):
+- Recreate the product exactly as it appears — same color, shape, size, texture, design
+- Place it in a natural real-world usage environment relevant to the product
+- Product must be the main subject, dominating the frame
 - 1000x1000 px (1:1 aspect ratio)
-- NO installation scenes, NO hands installing, NO tools, NO setup process
-- Preserve exact product details: materials, colors, finishes, dimensions, proportions, structural elements, textures
-- No text, labels, captions, or markings on image
-- No studio backgrounds — must be authentic real-world environment
-- Sharp focus on product, slightly softer background, realistic professional lighting
-- No logos, no branding, no company names
-- SMALL PRODUCT RULE (under 10cm): Use macro close-up, product fills 70-85% of frame, soft blurred background
-- ACCESSORY RULE: If product is small add-on/accessory, describe a split image — main use-case shot + macro detail panel showing texture/edges/finish
-- Maximum ONE person only if needed for scale — small, non-distracting, natural, NOT installing
-- NEVER show more than one person in the image
-- Focus must remain on the PRODUCT, not the person — person should be secondary/background element
+- Photorealistic, professional ecommerce product photography
+- Clean composition, soft studio or natural lighting, high detail
+- No text, no logos, no watermarks
+- Maximum ONE person if needed for scale — person is secondary, product is the star
 
-IMAGE PROMPT 2 (USE CASE — Real-World Application):
-- Show product ACTIVELY performing its intended purpose
+IMAGE PROMPT 2 (USE CASE — Product in Action):
+- Same product, exactly identical to reference — no changes to color, shape, texture, design
+- Show product in a different realistic environment demonstrating its use
+- Product remains the main focus
 - 1000x1000 px (1:1 aspect ratio)
-- Documentary-style photography, medium or wide framing
-- Demonstrate what the product DOES (e.g., speed bump with car driving over, bollard restricting entry, rack with items stored)
-- Viewer should instantly understand: what it does, why it's useful, how it improves workflow/safety
-- Must be real industrial/workplace environment, active and natural
-- Maximum ONE person allowed — natural interaction, correct attire, must not block product
-- NEVER show more than one person — keep focus on the product, person is secondary
-- No installation or setup scenes
-- No logos, no branding, no text overlays
-- Realistic environmental lighting, no staged studio look
+- Photorealistic, professional quality
+- Maximum ONE person if needed — natural interaction, must not block product
+- No text, no logos, no watermarks
 """
 
 
@@ -192,34 +182,45 @@ def generate_product_image_openai(prompt, reference_images=None):
     if not client:
         init_openai()
 
-    full_prompt = f"""Look at the reference product image provided. Now generate a NEW image following these rules:
+    full_prompt = f"""You are a professional product image generator.
+
+Use the provided reference image as the primary source and recreate the same product in a realistic environment.
 
 {prompt}
 
-ABSOLUTE RULES — DO NOT BREAK ANY:
+STRICT RULES:
+- The product must remain EXACTLY the same as in the reference image.
+- Do NOT change the product's color, shape, size, proportions, texture, or design.
+- Do NOT modify or redesign the product.
+- The product must look identical to the reference image.
+- Only improve lighting, realism, and environment.
 
-PRODUCT (MUST BE 100% IDENTICAL TO REFERENCE IMAGE — ZERO CHANGES):
-- The product must look EXACTLY like the reference image — same color, same shape, same material, same finish.
-- Every curve, edge, corner, hole, groove, ridge, fastener must match perfectly.
-- Same proportions and dimensions — do NOT make it bigger, smaller, thicker, or thinner.
-- Same surface texture — matte stays matte, glossy stays glossy, brushed stays brushed.
-- This is the SAME physical product from the reference image, just in a different place.
+IMAGE REQUIREMENTS:
+- Focus strongly on the product.
+- The product should remain the main subject in the image.
+- Use realistic lighting and shadows.
+- Place the product in a natural real-world usage environment relevant to the product.
+- Maintain high product clarity and sharpness.
+- Maximum ONE person if needed — person must be secondary, product is the star.
 
-WHAT MUST BE DIFFERENT (ONLY THESE):
-- The ENVIRONMENT/LOCATION — completely different real-world setting than the reference.
-- The USE CASE — different but realistic scenario showing the product in use.
-- People, surroundings, background — all different from reference.
+STYLE:
+- photorealistic
+- professional ecommerce product photography
+- clean composition
+- soft studio lighting or natural lighting
+- high detail
 
-OTHER RULES:
-- Professional photorealistic quality, natural lighting.
-- No text, no logos, no branding, no labels on the image.
-- MAXIMUM ONE PERSON in the image — never more than one. Person must be secondary, product is the star.
-- IMAGE SIZE: exactly 1000 x 1000 pixels, 1:1 square aspect ratio."""
+OUTPUT:
+- square image
+- 1000 x 1000 px
+- no text on the image
+- no logos
+- no watermarks"""
 
     # If reference images available, use chat completions with image input for better accuracy
     if reference_images:
         messages = [
-            {"role": "system", "content": "You are a product image generator. Generate exactly one image based on the reference product image and the prompt provided."},
+            {"role": "system", "content": "You are a professional product image generator. Use the provided reference image as the primary source. Recreate the same product exactly — same color, shape, size, texture, design — in a realistic environment. Do not modify the product in any way."},
             {"role": "user", "content": []}
         ]
         
@@ -291,16 +292,40 @@ def generate_product_image(prompt, reference_images=None):
                 )
             ))
         contents.append(genai.types.Part(
-            text=f"""Above is the REFERENCE IMAGE of the actual product from the supplier website.
-Study it carefully — the product's exact shape, color, material, texture, proportions, and all details.
+            text=f"""You are a professional product image generator.
 
-Now generate a NEW image based on these rules:
+Use the provided reference image above as the primary source and recreate the same product in a realistic environment.
 
 {prompt}
 
-CRITICAL: The product in your generated image MUST look exactly like the reference image above — same shape, same color, same material, same proportions. Do NOT simplify or change any detail.
+STRICT RULES:
+- The product must remain EXACTLY the same as in the reference image.
+- Do NOT change the product's color, shape, size, proportions, texture, or design.
+- Do NOT modify or redesign the product.
+- The product must look identical to the reference image.
+- Only improve lighting, realism, and environment.
 
-IMAGE SIZE: The image MUST be exactly 1000 x 1000 pixels with 1:1 aspect ratio (square)."""
+IMAGE REQUIREMENTS:
+- Focus strongly on the product.
+- The product should remain the main subject in the image.
+- Use realistic lighting and shadows.
+- Place the product in a natural real-world usage environment relevant to the product.
+- Maintain high product clarity and sharpness.
+- Maximum ONE person if needed — person must be secondary, product is the star.
+
+STYLE:
+- photorealistic
+- professional ecommerce product photography
+- clean composition
+- soft studio lighting or natural lighting
+- high detail
+
+OUTPUT:
+- square image
+- 1000 x 1000 px
+- no text on the image
+- no logos
+- no watermarks"""
         ))
     else:
         contents.append(genai.types.Part(text=f"{prompt}\n\nIMAGE SIZE: The image MUST be exactly 1000 x 1000 pixels with 1:1 aspect ratio (square)."))
