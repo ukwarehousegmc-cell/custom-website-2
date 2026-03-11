@@ -82,6 +82,22 @@ def scrape_shopify_product(product_json, base_url, collection_name, website_name
             if rows:
                 data["tables"].append(rows)
         
+        # Extract product-specs section
+        product_specs = soup.find(class_="product-specs")
+        if product_specs:
+            specs_rows = []
+            for tr in product_specs.find_all("tr"):
+                cells = [td.get_text(strip=True) for td in tr.find_all(["td", "th"])]
+                if cells:
+                    specs_rows.append(cells)
+            if specs_rows:
+                data["product_specs"] = specs_rows
+            else:
+                # Try dl/dt/dd or div-based specs
+                specs_text = product_specs.get_text(separator="\n", strip=True)
+                if specs_text:
+                    data["product_specs_text"] = specs_text
+        
         data["full_text"] = data["description"]
     
     # Images
@@ -128,6 +144,29 @@ def scrape_shopify_product(product_json, base_url, collection_name, website_name
     data["tags"] = product_json.get("tags", [])
     if isinstance(data["tags"], str):
         data["tags"] = [t.strip() for t in data["tags"].split(",")]
+    
+    # If no product_specs found in body_html, try scraping the live page
+    if not data.get("product_specs") and not data.get("product_specs_text"):
+        try:
+            live_url = f"{base_url}/products/{product_json['handle']}"
+            resp = requests.get(live_url, headers=HEADERS, timeout=15)
+            if resp.status_code == 200:
+                live_soup = BeautifulSoup(resp.text, "lxml")
+                ps = live_soup.find(class_="product-specs")
+                if ps:
+                    specs_rows = []
+                    for tr in ps.find_all("tr"):
+                        cells = [td.get_text(strip=True) for td in tr.find_all(["td", "th"])]
+                        if cells:
+                            specs_rows.append(cells)
+                    if specs_rows:
+                        data["product_specs"] = specs_rows
+                    else:
+                        specs_text = ps.get_text(separator="\n", strip=True)
+                        if specs_text:
+                            data["product_specs_text"] = specs_text
+        except Exception:
+            pass
     
     return data
 
@@ -277,6 +316,21 @@ def scrape_product_page(url, session=None):
         if options:
             variants.append({"label": label, "options": options})
     data["variants"] = variants
+    
+    # Product specs (class="product-specs")
+    product_specs = soup.find(class_="product-specs")
+    if product_specs:
+        specs_rows = []
+        for tr in product_specs.find_all("tr"):
+            cells = [td.get_text(strip=True) for td in tr.find_all(["td", "th"])]
+            if cells:
+                specs_rows.append(cells)
+        if specs_rows:
+            data["product_specs"] = specs_rows
+        else:
+            specs_text = product_specs.get_text(separator="\n", strip=True)
+            if specs_text:
+                data["product_specs_text"] = specs_text
     
     # Breadcrumbs
     breadcrumbs = []

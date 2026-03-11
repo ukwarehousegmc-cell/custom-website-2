@@ -37,7 +37,7 @@ STRICT RULES:
    - Use Cases (with heading)
    - FAQ (2-3 Q&As, last section)
 
-3. SPECIFICATIONS: Extract ALL technical data from the source. Rewrite in your own words. Include ALL measurements. Use structured format.
+3. SPECIFICATIONS: Extract ALL technical data from the source, especially from the "product-specs" section. Include ALL measurements. Present specifications as an HTML table format (<table> with rows). Rewrite in your own words but keep all values accurate.
 
 4. PRODUCT TYPE: Must match the collection name exactly.
 
@@ -130,6 +130,9 @@ DESCRIPTION FROM PAGE:
 
 SPECIFICATION TABLES:
 {json.dumps(product_data.get('tables', []), indent=2)[:5000]}
+
+PRODUCT SPECIFICATIONS (from product-specs section — MUST include ALL of these in Specifications as HTML table):
+{json.dumps(product_data.get('product_specs', []), indent=2) if product_data.get('product_specs') else product_data.get('product_specs_text', 'None found')}
 
 VARIANTS/OPTIONS FOUND:
 {json.dumps(product_data.get('variants', []), indent=2)[:3000]}
