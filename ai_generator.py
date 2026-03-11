@@ -26,7 +26,8 @@ LISTING_SYSTEM_PROMPT = """You are a Shopify product listing expert for a UK ind
 You create professional product listings from scraped product data.
 
 STRICT RULES:
-1. TITLE: Main Keyword – Size (if needed) – Colour – Important Detail – Use Case
+1. TITLE: Must be SEO optimised with the main keyword FIRST. Format: Main Keyword – Size (if needed) – Colour – Important Detail – Use Case
+   The most important searchable keyword must always come first in the title.
    If multiple sizes/colours exist as variants, don't put them in title.
 
 2. DESCRIPTION in this exact order:
