@@ -91,23 +91,24 @@ IMPORTANT:
 - Generate detailed image prompts following these STRICT image rules:
 
 IMAGE PROMPT 1 (PRIMARY — Product in Environment):
-- Recreate the product exactly as it appears — same color, shape, size, texture, design
+- Recreate the product exactly as it appears — same color, shape, size, texture, design, number of parts
 - Place it in a natural real-world usage environment relevant to the product
 - Product must be the main subject, dominating the frame
-- 1000x1000 px (1:1 aspect ratio)
+- 1000x1000 px (1:1 aspect ratio), high resolution
 - Photorealistic, professional ecommerce product photography
-- Clean composition, soft studio or natural lighting, high detail
+- High detail, realistic lighting and shadows
 - No text, no logos, no watermarks
-- Maximum ONE person if needed for scale — person is secondary, product is the star
+- Maximum ONE person if needed — person is secondary, product is the star
 
-IMAGE PROMPT 2 (USE CASE — Product in Action):
-- Same product, exactly identical to reference — no changes to color, shape, texture, design
-- Show product in a different realistic environment demonstrating its use
-- Product remains the main focus
-- 1000x1000 px (1:1 aspect ratio)
-- Photorealistic, professional quality
-- Maximum ONE person if needed — natural interaction, must not block product
+IMAGE PROMPT 2 (SECOND IMAGE — Same rules as Image 1):
+- SAME RULES as Image Prompt 1 — recreate the product exactly, same color, shape, size, texture, design, number of parts
+- Place it in a DIFFERENT realistic environment than Image 1
+- Product must be the main subject, dominating the frame
+- 1000x1000 px (1:1 aspect ratio), high resolution
+- Photorealistic, professional ecommerce product photography
+- High detail, realistic lighting and shadows
 - No text, no logos, no watermarks
+- Maximum ONE person if needed — person is secondary, product is the star
 """
 
 
@@ -306,22 +307,61 @@ def generate_product_image(prompt, reference_images=None):
                 )
             ))
         contents.append(genai.types.Part(
-            text=f"""Above is the REFERENCE IMAGE of the actual product from the supplier website.
-Study it carefully — the product's exact shape, color, material, texture, proportions, and all details.
-
-Now generate a NEW image based on these rules:
+            text=f"""Use the provided reference image to recreate the SAME product.
 
 {prompt}
 
-CRITICAL: The product in your generated image MUST look exactly like the reference image above — same shape, same color, same material, same proportions. Do NOT simplify or change any detail.
+CRITICAL RULE:
+The product must remain IDENTICAL to the reference image.
+Do NOT modify the product in any way.
 
-IMAGE SIZE: The image MUST be exactly 1000 x 1000 pixels with 1:1 aspect ratio (square)."""
+STRICT PRODUCT PRESERVATION RULES:
+- Keep the exact same color
+- Keep the exact same shape
+- Keep the exact same size and proportions
+- Keep the exact same structure and design
+- Keep the exact same number of parts, panels, holes, windows, patterns, screws, or segments
+- Keep the same texture and materials
+
+DO NOT:
+- add extra parts
+- remove any part
+- change the design
+- change the number of components
+- redesign the product
+
+HUMAN RULE:
+- If a person is shown, only ONE human is allowed in the image.
+- Do NOT include multiple people.
+- The human should interact naturally with the product.
+- The product must remain the main focus, not the person.
+
+ENVIRONMENT RULES:
+Only change the background or environment to a realistic real-world usage scenario relevant to the product.
+
+STYLE:
+photorealistic
+professional ecommerce product photography
+high detail
+realistic lighting and shadows
+
+IMAGE REQUIREMENTS:
+square image
+1000 x 1000 px
+high resolution, sharp and crisp quality
+no text
+no logo
+no watermark"""
         ))
     else:
-        contents.append(genai.types.Part(text=f"{prompt}\n\nIMAGE SIZE: The image MUST be exactly 1000 x 1000 pixels with 1:1 aspect ratio (square)."))
+        contents.append(genai.types.Part(text=f"""{prompt}
+
+STYLE: photorealistic, professional ecommerce product photography, high detail, realistic lighting and shadows
+IMAGE REQUIREMENTS: square image, 1000 x 1000 px, high resolution, sharp and crisp quality, no text, no logo, no watermark
+HUMAN RULE: Maximum ONE person if needed. Product must remain the main focus."""))
 
     response = gemini_client.models.generate_content(
-        model="gemini-2.5-flash-image",
+        model="gemini-2.0-flash-exp",
         contents=contents,
         config=genai.types.GenerateContentConfig(
             response_modalities=["IMAGE", "TEXT"],
