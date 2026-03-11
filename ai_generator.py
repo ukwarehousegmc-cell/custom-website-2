@@ -361,7 +361,7 @@ IMAGE REQUIREMENTS: square image, 1000 x 1000 px, high resolution, sharp and cri
 HUMAN RULE: Maximum ONE person if needed. Product must remain the main focus."""))
 
     response = gemini_client.models.generate_content(
-        model="gemini-2.0-flash-exp",
+        model="gemini-2.5-flash-image",
         contents=contents,
         config=genai.types.GenerateContentConfig(
             response_modalities=["IMAGE", "TEXT"],
