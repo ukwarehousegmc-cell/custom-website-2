@@ -339,16 +339,23 @@ HUMAN RULE:
 
 ENVIRONMENT RULES:
 Only change the background or environment to a realistic real-world usage scenario relevant to the product.
+The lighting, shadows, and background environment must be COMPLETELY DIFFERENT from the reference image.
+Do NOT copy or replicate the lighting, shadows, or background from the reference image.
+Create a totally new and different environment, lighting setup, and shadow direction.
+
+SIZE RULE:
+Ignore the size/resolution of the reference image completely.
+The output image must ALWAYS be exactly 1000 x 1000 px with 1:1 aspect ratio regardless of the reference image size.
 
 STYLE:
 photorealistic
 professional ecommerce product photography
 high detail
-realistic lighting and shadows
+realistic lighting and shadows (but different from reference)
 
 IMAGE REQUIREMENTS:
 square image
-1000 x 1000 px
+1000 x 1000 px, aspect ratio 1:1
 high resolution, sharp and crisp quality
 no text
 no logo
@@ -358,7 +365,7 @@ no watermark"""
         contents.append(genai.types.Part(text=f"""{prompt}
 
 STYLE: photorealistic, professional ecommerce product photography, high detail, realistic lighting and shadows
-IMAGE REQUIREMENTS: square image, 1000 x 1000 px, high resolution, sharp and crisp quality, no text, no logo, no watermark
+IMAGE REQUIREMENTS: square image, 1000 x 1000 px, aspect ratio 1:1, high resolution, sharp and crisp quality, no text, no logo, no watermark
 HUMAN RULE: Maximum ONE person if needed. Product must remain the main focus."""))
 
     response = gemini_client.models.generate_content(
