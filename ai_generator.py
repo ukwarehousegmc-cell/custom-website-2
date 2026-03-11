@@ -292,40 +292,16 @@ def generate_product_image(prompt, reference_images=None):
                 )
             ))
         contents.append(genai.types.Part(
-            text=f"""You are a professional product image generator.
+            text=f"""Above is the REFERENCE IMAGE of the actual product from the supplier website.
+Study it carefully — the product's exact shape, color, material, texture, proportions, and all details.
 
-Use the provided reference image above as the primary source and recreate the same product in a realistic environment.
+Now generate a NEW image based on these rules:
 
 {prompt}
 
-STRICT RULES:
-- The product must remain EXACTLY the same as in the reference image.
-- Do NOT change the product's color, shape, size, proportions, texture, or design.
-- Do NOT modify or redesign the product.
-- The product must look identical to the reference image.
-- Only improve lighting, realism, and environment.
+CRITICAL: The product in your generated image MUST look exactly like the reference image above — same shape, same color, same material, same proportions. Do NOT simplify or change any detail.
 
-IMAGE REQUIREMENTS:
-- Focus strongly on the product.
-- The product should remain the main subject in the image.
-- Use realistic lighting and shadows.
-- Place the product in a natural real-world usage environment relevant to the product.
-- Maintain high product clarity and sharpness.
-- Maximum ONE person if needed — person must be secondary, product is the star.
-
-STYLE:
-- photorealistic
-- professional ecommerce product photography
-- clean composition
-- soft studio lighting or natural lighting
-- high detail
-
-OUTPUT:
-- square image
-- 1000 x 1000 px
-- no text on the image
-- no logos
-- no watermarks"""
+IMAGE SIZE: The image MUST be exactly 1000 x 1000 pixels with 1:1 aspect ratio (square)."""
         ))
     else:
         contents.append(genai.types.Part(text=f"{prompt}\n\nIMAGE SIZE: The image MUST be exactly 1000 x 1000 pixels with 1:1 aspect ratio (square)."))
