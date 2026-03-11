@@ -182,45 +182,73 @@ def generate_product_image_openai(prompt, reference_images=None):
     if not client:
         init_openai()
 
-    full_prompt = f"""You are a professional product image generator.
+    full_prompt = f"""You are generating product images for ecommerce listings.
 
-Use the provided reference image as the primary source and recreate the same product in a realistic environment.
+A reference image and the PRODUCT TITLE will be provided.
+
+IMPORTANT:
+The title refers to the exact product shown in the reference image.
+
+You must generate images ONLY for the product mentioned in the title.
 
 {prompt}
 
-STRICT RULES:
-- The product must remain EXACTLY the same as in the reference image.
-- Do NOT change the product's color, shape, size, proportions, texture, or design.
-- Do NOT modify or redesign the product.
-- The product must look identical to the reference image.
-- Only improve lighting, realism, and environment.
+CRITICAL PRODUCT RULE:
+The product must remain IDENTICAL to the reference image.
 
-IMAGE REQUIREMENTS:
-- Focus strongly on the product.
-- The product should remain the main subject in the image.
-- Use realistic lighting and shadows.
-- Place the product in a natural real-world usage environment relevant to the product.
-- Maintain high product clarity and sharpness.
-- Maximum ONE person if needed — person must be secondary, product is the star.
+Do NOT modify the product in any way.
+
+STRICT PRODUCT PRESERVATION RULES:
+- Keep the exact same color
+- Keep the exact same shape
+- Keep the exact same size and proportions
+- Keep the exact same structure and design
+- Keep the exact same number of parts, panels, holes, windows, patterns, screws, or segments
+- Keep the same texture and materials
+
+DO NOT:
+- add extra parts
+- remove any part
+- change the design
+- change the number of components
+- redesign the product
+
+HUMAN RULE:
+- If a person is shown, only ONE human is allowed in the image.
+- Do NOT include multiple people.
+- The human should interact naturally with the product.
+- The product must remain the main focus.
+
+ENVIRONMENT RULE:
+Place the product in a realistic environment related to its use while keeping the product clearly visible.
+
+PRODUCT TITLE RULE:
+The generated image must correspond to the product mentioned in the title.
+Do not generate images for any other product.
+
+WORKFLOW RULE:
+Generate all required images for the current product first.
+After completing the images for the current product, only then move to the next product.
+
+Do NOT mix elements from different products.
 
 STYLE:
-- photorealistic
-- professional ecommerce product photography
-- clean composition
-- soft studio lighting or natural lighting
-- high detail
+photorealistic
+professional ecommerce product photography
+high detail
+realistic lighting and shadows
 
-OUTPUT:
-- square image
-- 1000 x 1000 px
-- no text on the image
-- no logos
-- no watermarks"""
+OUTPUT REQUIREMENTS:
+1000 x 1000 px
+square image
+no text
+no logo
+no watermark"""
 
     # If reference images available, use chat completions with image input for better accuracy
     if reference_images:
         messages = [
-            {"role": "system", "content": "You are a professional product image generator. Use the provided reference image as the primary source. Recreate the same product exactly — same color, shape, size, texture, design — in a realistic environment. Do not modify the product in any way."},
+            {"role": "system", "content": "You are generating product images for ecommerce listings. Use the provided reference image as the primary source. The product must remain IDENTICAL — same color, shape, size, proportions, structure, texture, materials. Do NOT modify, redesign, add or remove any part. Place in a realistic environment. Max ONE person. No text, logos, or watermarks."},
             {"role": "user", "content": []}
         ]
         
