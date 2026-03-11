@@ -325,7 +325,8 @@ def generate_images_for_product(listing_data, product_data=None, log_callback=No
     """Generate both product images. Each image uses ONE reference image from the gallery.
     Image 1: uses first gallery image as reference.
     Image 2: uses second gallery image as reference.
-    Only one reference image is sent to AI at a time — never multiple together."""
+    Only one reference image is sent to AI at a time — never multiple together.
+    Reference product title is also passed to AI for context."""
     images = []
     
     if image_provider == "gemini" and not os.getenv("GEMINI_API_KEY"):
@@ -341,6 +342,7 @@ def generate_images_for_product(listing_data, product_data=None, log_callback=No
     provider_name = "Gemini" if image_provider == "gemini" else "OpenAI"
     
     source_images = (product_data or {}).get("images", [])
+    ref_title = (product_data or {}).get("title", "")
     
     prompt1 = listing_data.get("image_prompt_1", "")
     prompt2 = listing_data.get("image_prompt_2", "")
@@ -373,13 +375,18 @@ def generate_images_for_product(listing_data, product_data=None, log_callback=No
                 log_callback(f"⚠️ No gallery image {gallery_idx + 1} available — generating without reference")
         
         try:
+            # Add reference product title to prompt for context
+            full_prompt = prompt
+            if ref_title:
+                full_prompt = f"Reference product: {ref_title}\nMake image with use of this product with related person.\n\n{prompt}"
+            
             if log_callback:
                 log_callback(f"🎨 Generating image {idx} ({label}) with {provider_name} using {'1 reference' if ref_single else 'no reference'}...")
             
             if image_provider == "openai":
-                img = generate_product_image_openai(prompt, ref_single if ref_single else None)
+                img = generate_product_image_openai(full_prompt, ref_single if ref_single else None)
             else:
-                img = generate_product_image(prompt, ref_single if ref_single else None)
+                img = generate_product_image(full_prompt, ref_single if ref_single else None)
             
             images.append({"data": img, "filename": f"product-{label}.png", "type": label})
             if log_callback:
