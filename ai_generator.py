@@ -102,7 +102,9 @@ IMAGE PROMPT 1 (PRIMARY — Real-Life Application):
 - No logos, no branding, no company names
 - SMALL PRODUCT RULE (under 10cm): Use macro close-up, product fills 70-85% of frame, soft blurred background
 - ACCESSORY RULE: If product is small add-on/accessory, describe a split image — main use-case shot + macro detail panel showing texture/edges/finish
-- People only if needed for scale — small, non-distracting, natural, NOT installing
+- Maximum ONE person only if needed for scale — small, non-distracting, natural, NOT installing
+- NEVER show more than one person in the image
+- Focus must remain on the PRODUCT, not the person — person should be secondary/background element
 
 IMAGE PROMPT 2 (USE CASE — Real-World Application):
 - Show product ACTIVELY performing its intended purpose
@@ -111,7 +113,8 @@ IMAGE PROMPT 2 (USE CASE — Real-World Application):
 - Demonstrate what the product DOES (e.g., speed bump with car driving over, bollard restricting entry, rack with items stored)
 - Viewer should instantly understand: what it does, why it's useful, how it improves workflow/safety
 - Must be real industrial/workplace environment, active and natural
-- People ENCOURAGED — natural interaction, correct attire, must not block product
+- Maximum ONE person allowed — natural interaction, correct attire, must not block product
+- NEVER show more than one person — keep focus on the product, person is secondary
 - No installation or setup scenes
 - No logos, no branding, no text overlays
 - Realistic environmental lighting, no staged studio look
@@ -210,6 +213,7 @@ WHAT MUST BE DIFFERENT (ONLY THESE):
 OTHER RULES:
 - Professional photorealistic quality, natural lighting.
 - No text, no logos, no branding, no labels on the image.
+- MAXIMUM ONE PERSON in the image — never more than one. Person must be secondary, product is the star.
 - IMAGE SIZE: exactly 1000 x 1000 pixels, 1:1 square aspect ratio."""
 
     # If reference images available, use chat completions with image input for better accuracy
