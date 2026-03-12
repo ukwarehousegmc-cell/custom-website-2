@@ -256,12 +256,18 @@ def scrape_product_page(url, session=None):
     h1 = soup.find("h1")
     data["title"] = h1.get_text(strip=True) if h1 else ""
     
-    # Price(s)
+    # Price(s) — check class="text-lg" first (regular price), then fallback to price classes
     prices = []
-    for el in soup.find_all(class_=re.compile(r"price", re.I)):
-        text = el.get_text(strip=True)
+    text_lg = soup.find(class_="text-lg")
+    if text_lg:
+        text = text_lg.get_text(strip=True)
         found = re.findall(r"£[\d,]+\.?\d*", text)
         prices.extend(found)
+    if not prices:
+        for el in soup.find_all(class_=re.compile(r"price", re.I)):
+            text = el.get_text(strip=True)
+            found = re.findall(r"£[\d,]+\.?\d*", text)
+            prices.extend(found)
     meta_price = soup.find("meta", {"property": "product:price:amount"})
     if meta_price:
         prices.append(f"£{meta_price['content']}")
