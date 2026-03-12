@@ -4,10 +4,12 @@ Also generates product images via DALL-E.
 """
 
 import os
+import io
 import json
 import base64
 import requests
 from openai import OpenAI
+from PIL import Image as PILImage
 from google import genai
 
 client = None
@@ -291,97 +293,270 @@ no watermark"""
     return img_response.content
 
 
-def generate_product_image(prompt, reference_images=None):
-    """Generate a product image using Gemini, with reference images for accuracy."""
+def _detect_scenario_type(product_title):
+    """Detect whether product needs LIFESTYLE or INDUSTRIAL scenario."""
+    product_lower = product_title.lower()
+    is_furniture = any(kw in product_lower for kw in [
+        'bench', 'chair', 'seat', 'table', 'sofa', 'couch', 'stool', 'furniture',
+        'lounger', 'hammock', 'swing', 'gazebo', 'pergola', 'planter', 'pot'
+    ])
+    is_outdoor = any(kw in product_lower for kw in [
+        'garden', 'outdoor', 'patio', 'deck', 'bbq', 'grill', 'fire pit',
+        'umbrella', 'parasol', 'fountain', 'statue', 'ornament'
+    ])
+    return "LIFESTYLE" if (is_furniture or is_outdoor) else "INDUSTRIAL"
+
+
+def _build_edit_prompt(product_title, variation="product_in_use", num_ref_images=1):
+    """Build the comprehensive image editing prompt matching the proven gemini_service.py approach."""
+    scenario_type = _detect_scenario_type(product_title)
+
+    size_context = ""
+    if num_ref_images > 1:
+        size_context = f"""
+📏 SIZE & SCALE CONTEXT:
+- You have been provided with {num_ref_images} reference images of this product
+- Analyze ALL images to understand the product's ACTUAL REAL-WORLD SIZE and proportions
+- The product title "{product_title}" indicates the true nature and scale of this product
+- PAY CLOSE ATTENTION to size indicators in the images (people, objects, measurements)
+- Ensure the generated image shows the product at its CORRECT REAL-WORLD SCALE
+- If the product is large (barriers, bollards, parking equipment, industrial items), show it at FULL SIZE
+- If the product is small (tools, accessories), show it at appropriate human-scale
+
+🎯 COMPLETE PRODUCT SETUP:
+- Study ALL {num_ref_images} reference images to see the COMPLETE product setup
+- If images show containers/tanks ON a pallet (like IBC Spill Pallets) → show WITH containers
+- If images show items IN/ON racks or shelves → show WITH items stored
+- If images show equipment WITH accessories or attachments → show COMPLETE assembly
+- DO NOT generate just an empty base/frame if references show it loaded or complete
+- The reference images show how the product is MEANT TO LOOK - replicate that exactly
+"""
+
+    # Variation-specific instructions
+    if variation == "product_in_use":
+        variation_instructions = """
+📸 IMAGE 1 — REAL-LIFE APPLICATION WITH PRODUCT AS MAIN FOCUS (PRIMARY IMAGE)
+
+🎯 OBJECTIVE:
+Create a REAL-LIFE APPLICATION image showing the product EXACTLY as it appears in ALL reference images, with the product dominating 50–70% of the frame.
+✅ Image must be 1000 × 1000 px (1:1 aspect ratio).
+
+⚠️ CRITICAL - NO INSTALLATION SCENES:
+❌ DO NOT show installation, setup, or assembly processes
+❌ DO NOT show hands installing or tools installing
+❌ DO NOT show workers setting up the product
+✅ ONLY show the product in real use - already installed, already functioning, actively being used
+
+🎯 WHAT TO SHOW (MANDATORY):
+1. Analyze the product title and ALL reference images to understand the product's purpose, material, design, proportions, and functional details.
+2. Show the product actively performing its real-world purpose in an authentic location.
+3. The product must appear 100% IDENTICAL to references — no modifications, no missing features, no simplification.
+4. Do NOT add any text, labels, captions, or markings on the image.
+
+🎯 PRODUCT DETAIL REQUIREMENTS (MUST MATCH REFERENCES):
+Preserve EVERY detail exactly:
+- Exact materials (metal, plastic, rubber, composite, etc.)
+- Exact colors & finishes (matte, glossy, textured, brushed, powder-coated, etc.)
+- Exact dimensions & proportions relative to environment
+- All structural elements (holes, grooves, ridges, fasteners, handles, brackets, bolts, clips, hinges)
+- Surface texture and fine detailing (grain, welds, seams, edges, corners)
+- Any technical or functional components (mechanisms, moving parts, connectors)
+
+🔍 SMALL PRODUCT RULE (FOR PRODUCTS UNDER 10CM):
+IF the product is SMALL (clips, screws, brackets, connectors, fasteners, hooks, small accessories):
+✅ Use macro close-up photography
+✅ Product fills 70–85% of frame
+✅ Only ONE product in the frame (no multiples)
+✅ Soft blurred background for depth
+
+📸 COMPOSITION RULES:
+- Product is the main subject
+- Sharp focus on the product
+- Background slightly softer
+- Realistic lighting appropriate to environment
+- Professional product photography style
+- Product occupies 50–70% of frame (70–85% for small products)
+"""
+    else:
+        variation_instructions = """
+📸 IMAGE 2 — REAL-WORLD APPLICATION (USE CASE DEMONSTRATION)
+
+🎯 OBJECTIVE:
+Show the product actively performing its intended purpose in a real-world environment.
+✅ Image size must be 1000 × 1000 px (1:1)
+✅ Use-case only — NO installation scenes, NO setup, NO assembly
+
+⚠️ CRITICAL - NO INSTALLATION ALLOWED:
+❌ DO NOT show installation, setup, or assembly
+❌ DO NOT show workers installing the product
+❌ DO NOT show hands or tools setting up the product
+✅ ONLY show: Product already installed, already in place, actively being USED
+
+🎯 WHAT TO SHOW:
+1. Demonstrate HOW and WHY the product is used in real scenarios
+2. Show the exact environment where it is needed
+3. Show the product in REAL ACTION (already installed, functioning)
+
+💡 VALUE DEMONSTRATION:
+The viewer should instantly understand:
+✅ What the product does in practice
+✅ Why it is useful and valuable
+✅ How it improves workflow, safety, or organization
+
+👥 PEOPLE (ENCOURAGED):
+✅ Should be interacting naturally with the product IN USE
+✅ Show people BENEFITING from the product
+✅ Wearing correct attire (work clothes, safety gear if appropriate)
+✅ Must NOT overshadow the product
+❌ NO installation actions, NO setup activities
+
+🎬 STYLE:
+✅ Documentary-style photography showing "how it's really used"
+✅ Medium or wide framing showing product IN CONTEXT
+✅ Realistic environmental lighting
+"""
+
+    edit_prompt = f"""You are a professional lifestyle product photographer. Transform this product image into a compelling, real-world application photograph showing the product in use.
+
+PRODUCT: {product_title}
+{size_context}
+{variation_instructions}
+
+🎯 PHOTOGRAPHY OBJECTIVE:
+Create a REALISTIC, professional photograph showing this product being used in its INTENDED REAL-WORLD APPLICATION.
+The product SIZE and SCALE must be ACCURATE based on the product title and reference images provided.
+
+⚠️ CRITICAL: PRESERVE THE EXACT PRODUCT APPEARANCE
+🔒 PRODUCT INTEGRITY - MUST NOT CHANGE:
+1. Keep the product's EXACT PHYSICAL DESIGN - do not alter shape, form, or structure
+2. Preserve EXACT COLORS - maintain all original colors of the product precisely
+3. Keep EXACT MATERIALS and textures - metal stays metal, plastic stays plastic, etc.
+4. Maintain EXACT DIMENSIONS and proportions as shown in reference images
+5. Keep ALL PHYSICAL FEATURES - buttons, grooves, edges, patterns exactly as they are
+6. Do NOT redesign, modify, or "improve" the product in any way
+7. The product must be IDENTICAL to the original - only remove text/logos/brands
+
+✅ WHAT YOU CAN CHANGE:
+- The ENVIRONMENT and background (add realistic workplace/lifestyle setting)
+- The LIGHTING and photography angle
+- Add PEOPLE interacting with the product (hands, workers, users)
+- Add CONTEXT objects (tools, vehicles, other environmental items)
+- The SCENARIO showing how the product is used
+
+❌ WHAT YOU CANNOT CHANGE:
+- The product's physical appearance, design, or features
+- The product's colors or materials
+- The product's size or proportions
+- The product's shape or structure
+
+🎯 RESULT: The SAME product in a NEW realistic environment/scenario
+
+SCENARIO TYPE: {scenario_type}
+
+👤 HUMAN INTERACTION:
+{"LIFESTYLE SCENARIO - Natural, Relaxed Usage:" if scenario_type == "LIFESTYLE" else "ACTIVE USE SCENARIO - Installation/Operation:"}
+{"- Show person naturally using or enjoying the product (sitting, relaxing, etc.)" if scenario_type == "LIFESTYLE" else "- Show professional worker actively using or operating the product"}
+{"- Person dressed casually and comfortably for the setting" if scenario_type == "LIFESTYLE" else "- Person dressed appropriately (safety gear, work clothes, etc.)"}
+{"- Natural, relaxed posture - enjoying the product" if scenario_type == "LIFESTYLE" else "- Focus on HANDS and product interaction - holding, operating"}
+{"- Authentic lifestyle moment captured naturally" if scenario_type == "LIFESTYLE" else "- Natural, authentic body language and realistic usage posture"}
+
+🏗️ ENVIRONMENT & SETTING:
+{"LIFESTYLE SETTING - Beautiful, Natural Environment:" if scenario_type == "LIFESTYLE" else "WORKPLACE SETTING - Authentic Work Environment:"}
+{"- Outdoor garden, patio, deck, backyard, or beautiful home setting" if scenario_type == "LIFESTYLE" else "- Job site, workshop, garage, construction area, or workplace"}
+{"- Lush greenery, flowers, natural landscaping in background (softly blurred)" if scenario_type == "LIFESTYLE" else "- Work surfaces, tools, equipment, materials in background (blurred)"}
+{"- Natural sunlight, golden hour lighting, or soft outdoor illumination" if scenario_type == "LIFESTYLE" else "- Workshop lighting, natural daylight, or work environment lighting"}
+
+📸 PROFESSIONAL PHOTOGRAPHY QUALITY:
+1. Photorealistic, looks like actual product photography
+2. Natural lighting appropriate to the environment
+3. Shallow depth of field - product and person in focus, background beautifully blurred
+4. Professional color grading with authentic, natural tones
+5. Camera angle: Eye-level or slightly above, showing product in perfect context
+
+ENVIRONMENT VARIATION RULE (MANDATORY):
+The environment in the generated image must be COMPLETELY DIFFERENT from the reference images.
+While the product must remain 100% identical, the background, surroundings, layout, floor type, walls, lighting style, and overall setting must be changed entirely.
+❌ Do NOT replicate or closely match the reference image environment, camera angle, composition, or scene layout.
+
+🚫 BRAND & LOGO REMOVAL - CRITICAL:
+1. Remove ALL text from the PRODUCT itself:
+   - Brand names, model numbers, manufacturer marks, logos
+   - Product labels, serial numbers, company names
+   - Replace with CLEAN surfaces matching the product's material
+   - The product must be completely TEXT-FREE and BRAND-FREE
+
+2. KEEP realistic environmental text for authenticity:
+   ✅ KEEP: Safety signs ("DANGER", "CAUTION", "WARNING", "SAFETY FIRST")
+   ✅ KEEP: Directional signs ("EXIT", "ENTRANCE")
+   ✅ KEEP: Generic workplace signage
+
+3. REMOVE from environment:
+   ❌ REMOVE: Company names, business logos, brand names
+   ❌ REMOVE: Phone numbers, websites, email addresses
+
+🎯 FINAL RESULT:
+A compelling, photorealistic lifestyle image showing the product being used in its intended real-world application, with appropriate human interaction and environment - professional, authentic, engaging, and completely text-free.
+✅ Image must be 1000 × 1000 px (1:1 aspect ratio)."""
+
+    return edit_prompt
+
+
+def generate_product_image(prompt, reference_images=None, product_title=None, variation="product_in_use"):
+    """Generate a product image using Gemini with the proven gemini_service.py prompt approach.
+    
+    When reference images are provided, uses the comprehensive edit prompt with smart
+    category detection (LIFESTYLE vs INDUSTRIAL) for best results.
+    Falls back to simple prompt mode when no references available.
+    """
     if not gemini_client:
         init_gemini()
 
-    # Build content parts: reference images + text prompt
     contents = []
-    
+
     if reference_images:
+        # Use the comprehensive edit prompt (proven approach from gemini_service.py)
+        title = product_title or "Product"
+        edit_prompt = _build_edit_prompt(title, variation=variation, num_ref_images=len(reference_images))
+
+        # Load reference images as PIL Images for Gemini
+        pil_images = []
         for ref in reference_images:
-            contents.append(genai.types.Part(
-                inline_data=genai.types.Blob(
-                    mime_type=ref["mime"],
-                    data=ref["data"],
-                )
-            ))
-        contents.append(genai.types.Part(
-            text=f"""Use the provided reference image to recreate the SAME product.
+            try:
+                img = PILImage.open(io.BytesIO(ref["data"]))
+                pil_images.append(img)
+            except Exception:
+                continue
 
-{prompt}
+        # Build contents: prompt first, then all reference images
+        contents = [edit_prompt]
+        contents.extend(pil_images)
 
-CRITICAL RULE:
-The product must remain IDENTICAL to the reference image.
-Do NOT modify the product in any way.
-
-STRICT PRODUCT PRESERVATION RULES:
-- Keep the exact same color
-- Keep the exact same shape
-- Keep the exact same size and proportions
-- Keep the exact same structure and design
-- Keep the exact same number of parts, panels, holes, windows, patterns, screws, or segments
-- Keep the same texture and materials
-
-DO NOT:
-- add extra parts
-- remove any part
-- change the design
-- change the number of components
-- redesign the product
-
-HUMAN RULE:
-- If a person is shown, only ONE human is allowed in the image.
-- Do NOT include multiple people.
-- The human should interact naturally with the product.
-- The product must remain the main focus, not the person.
-
-ENVIRONMENT RULES:
-Only change the background or environment to a realistic real-world usage scenario relevant to the product.
-The lighting, shadows, and background environment must be COMPLETELY DIFFERENT from the reference image.
-Do NOT copy or replicate the lighting, shadows, or background from the reference image.
-Create a totally new and different environment, lighting setup, and shadow direction.
-
-SIZE RULE:
-Ignore the size/resolution of the reference image completely.
-The output image must ALWAYS be exactly 1000 x 1000 px with 1:1 aspect ratio regardless of the reference image size.
-
-STYLE:
-photorealistic
-professional ecommerce product photography
-high detail
-realistic lighting and shadows (but different from reference)
-
-IMAGE REQUIREMENTS:
-square image
-1000 x 1000 px, aspect ratio 1:1
-high resolution, sharp and crisp quality
-no text
-no logo
-no watermark"""
-        ))
+        response = gemini_client.models.generate_content(
+            model="gemini-2.5-flash-image",
+            contents=contents,
+        )
     else:
-        contents.append(genai.types.Part(text=f"""{prompt}
+        # No reference images — use simple prompt mode
+        contents = [genai.types.Part(text=f"""{prompt}
 
 STYLE: photorealistic, professional ecommerce product photography, high detail, realistic lighting and shadows
 IMAGE REQUIREMENTS: square image, 1000 x 1000 px, aspect ratio 1:1, high resolution, sharp and crisp quality, no text, no logo, no watermark
-HUMAN RULE: Maximum ONE person if needed. Product must remain the main focus."""))
+HUMAN RULE: Maximum ONE person if needed. Product must remain the main focus.""")]
 
-    response = gemini_client.models.generate_content(
-        model="gemini-2.5-flash-image",
-        contents=contents,
-        config=genai.types.GenerateContentConfig(
-            response_modalities=["IMAGE", "TEXT"],
-        ),
-    )
+        response = gemini_client.models.generate_content(
+            model="gemini-2.5-flash-image",
+            contents=contents,
+            config=genai.types.GenerateContentConfig(
+                response_modalities=["IMAGE", "TEXT"],
+            ),
+        )
 
     # Extract image from response
     for part in response.candidates[0].content.parts:
         if part.inline_data and part.inline_data.mime_type.startswith("image/"):
             return part.inline_data.data
-    
-    raise Exception("No image generated by Imagen")
+
+    raise Exception("No image generated by Gemini")
 
 
 def generate_images_for_product(listing_data, product_data=None, log_callback=None, image_provider="gemini"):
@@ -449,7 +624,9 @@ def generate_images_for_product(listing_data, product_data=None, log_callback=No
             if image_provider == "openai":
                 img = generate_product_image_openai(full_prompt, ref_single if ref_single else None)
             else:
-                img = generate_product_image(full_prompt, ref_single if ref_single else None)
+                # Use variation type matching gemini_service.py approach
+                var_type = "product_in_use" if idx == 1 else "installation"
+                img = generate_product_image(full_prompt, ref_single if ref_single else None, product_title=ref_title, variation=var_type)
             
             images.append({"data": img, "filename": f"product-{label}.png", "type": label})
             if log_callback:
