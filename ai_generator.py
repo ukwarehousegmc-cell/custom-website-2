@@ -334,7 +334,7 @@ def _build_edit_prompt(product_title, variation="product_in_use", num_ref_images
 
     # Variation-specific instructions
     if variation == "product_in_use":
-        variation_instructions = """
+        variation_instructions = f"""
 📸 IMAGE 1 — REAL-LIFE APPLICATION WITH PRODUCT AS MAIN FOCUS (PRIMARY IMAGE)
 
 🎯 OBJECTIVE:
@@ -349,7 +349,7 @@ Create a REAL-LIFE APPLICATION image showing the product EXACTLY as it appears i
 
 🎯 WHAT TO SHOW (MANDATORY):
 1. Analyze the product title and ALL reference images to understand the product's purpose, material, design, proportions, and functional details.
-2. Show the product actively performing its real-world purpose in an authentic location.
+2. Show the product actively performing its real-world purpose in an authentic location (warehouse, parking lot, industrial site, construction area, workshop, etc.).
 3. The product must appear 100% IDENTICAL to references — no modifications, no missing features, no simplification.
 4. Do NOT add any text, labels, captions, or markings on the image.
 
@@ -361,13 +361,71 @@ Preserve EVERY detail exactly:
 - All structural elements (holes, grooves, ridges, fasteners, handles, brackets, bolts, clips, hinges)
 - Surface texture and fine detailing (grain, welds, seams, edges, corners)
 - Any technical or functional components (mechanisms, moving parts, connectors)
+- ❌ NO design changes allowed
+- ❌ NO simplification or abstraction
+- ❌ NO missing elements or features
 
 🔍 SMALL PRODUCT RULE (FOR PRODUCTS UNDER 10CM):
-IF the product is SMALL (clips, screws, brackets, connectors, fasteners, hooks, small accessories):
+**IF the product is SMALL** (clips, screws, brackets, connectors, fasteners, hooks, small accessories):
 ✅ Use macro close-up photography
 ✅ Product fills 70–85% of frame
 ✅ Only ONE product in the frame (no multiples)
 ✅ Soft blurred background for depth
+✅ High-detail capture of texture, edges, threads, and finish
+✅ Still shown in real use, NOT installation
+✅ Image must be 1000 × 1000 px (1:1)
+
+⭐ ACCESSORY RULE (MANDATORY):
+**IF the product is an ACCESSORY or small ADD-ON PART:**
+
+Generate TWO images in one output (side-by-side composition):
+
+1️⃣ MAIN IMAGE — Real Use Case (Left side, 60% of frame)
+✅ Accessory shown installed or functioning in its real-world use
+✅ Medium framing showing context
+✅ Authentic environment
+✅ Product actively in use (NOT being installed)
+✅ Natural lighting appropriate to setting
+
+2️⃣ SIDE PANEL — Macro Detail (Right side, 40% of frame)
+✅ Extreme zoom-in panel
+✅ Fills 70–90% of this panel
+✅ Soft blurred background
+✅ Shows texture, edges, surface finish in extreme detail
+✅ Only ONE accessory in the macro panel
+✅ Sharp focus on material quality and craftsmanship
+
+✅ Final combined image must be 1000 × 1000 px (1:1)
+
+📸 CRITICAL: SHOW COMPLETE PRODUCT AS SEEN IN REFERENCE IMAGES:
+- Study ALL reference images to understand the COMPLETE product
+- If product is designed to HOLD items (pallets, racks, stands):
+  * Show the COMPLETE setup - the base product WITH what it's meant to hold
+  * IBC pallet → Show WITH IBC container on top
+  * Storage rack → Show WITH items stored on shelves
+  * Tool holder → Show WITH tools in place
+- Show the product LOADED and FUNCTIONAL as it would be in real use
+- DO NOT show just an empty base/frame if it's meant to hold something
+
+🌍 ENVIRONMENT RULES:
+- Use an authentic location where the product is used (warehouse, parking area, industrial zone, workshop, construction site)
+- Background supports but never distracts
+- No studio backgrounds
+- NOT empty or sterile - realistic workplace setting
+- Lighting highlights the product naturally
+
+ENVIRONMENT VARIATION RULE (MANDATORY):
+The environment in the generated image must be COMPLETELY DIFFERENT from the reference images.
+While the product must remain 100% identical, the background, surroundings, layout, floor type, walls, lighting style, and overall setting must be changed entirely.
+❌ Do NOT replicate or closely match the reference image environment, camera angle, composition, or scene layout.
+Use a new but still realistic and relevant environment where the product would logically be used (e.g. a different warehouse type, different outdoor area, different industrial location).
+The environment must support the same use case but clearly appear as a fresh, original scene, not a copy or variation of the reference background.
+
+👥 PEOPLE (OPTIONAL):
+- Only include if needed for scale or realism
+- Keep them small, in background, and non-distracting
+- Must look natural, not posed
+- Product always remains the main focus
 
 📸 COMPOSITION RULES:
 - Product is the main subject
@@ -376,9 +434,27 @@ IF the product is SMALL (clips, screws, brackets, connectors, fasteners, hooks, 
 - Realistic lighting appropriate to environment
 - Professional product photography style
 - Product occupies 50–70% of frame (70–85% for small products)
+
+🚫 BRANDING RULES (MANDATORY):
+- NO logos or brand names on product
+- NO company signage in environment
+- Generic safety labels allowed if needed
+
+🎯 FINAL RESULT:
+A professional photograph showing the product in REAL-LIFE APPLICATION as the MAIN FOCUS - the product is clearly visible, well-lit, and prominent, while the environment shows its purpose. All product details from reference images are preserved exactly.
+
+**Think:** "Product catalog photo taken in real environment" NOT "Environment photo that includes a product"
+
+Examples of final results:
+- IBC Spill Pallet → Pallet WITH container prominently displayed in warehouse, all details visible
+- Parking Bollard → Bollard as main subject in parking lot context, design details clear
+- Floor Tape → Tape clearly visible and prominent on warehouse floor
+- Storage Rack → Rack WITH items as focal point in facility setting
+- Small Hook → Macro close-up on workshop wall, fills frame, threads visible
+- Accessory Bracket → Split image: installed on equipment (main) + macro detail (side panel)
 """
-    else:
-        variation_instructions = """
+    elif variation == "installation":
+        variation_instructions = f"""
 📸 IMAGE 2 — REAL-WORLD APPLICATION (USE CASE DEMONSTRATION)
 
 🎯 OBJECTIVE:
@@ -390,30 +466,222 @@ Show the product actively performing its intended purpose in a real-world enviro
 ❌ DO NOT show installation, setup, or assembly
 ❌ DO NOT show workers installing the product
 ❌ DO NOT show hands or tools setting up the product
+❌ DO NOT show the product being put in place
 ✅ ONLY show: Product already installed, already in place, actively being USED
 
 🎯 WHAT TO SHOW:
 1. Demonstrate HOW and WHY the product is used in real scenarios
 2. Show the exact environment where it is needed
-3. Show the product in REAL ACTION (already installed, functioning)
+3. Show the product in REAL ACTION (already installed, functioning):
+   - Spill pallet → Under IBC tank containing spills
+   - Wheel stop → Car tire resting against it
+   - Bollard → Preventing vehicle access
+   - Storage rack → Worker retrieving stored items
+   - Floor tape → Pathway guiding foot/forklift traffic
+   - Speed bump → Slowing car
+   - Barrier → Protecting workers
+
+📋 APPLICATION EXAMPLES BY PRODUCT CATEGORY:
+
+**STORAGE & CONTAINMENT Products:**
+- IBC Spill Pallet → Active chemical storage area with IBC containers being stored, showing spill containment in use
+- Storage Rack → Warehouse with workers accessing stored items, showing organizational benefits
+- Tool Cabinet → Workshop with tools being retrieved/used, showing workflow efficiency
+- Container → Products being stored or transported, showing practical capacity
+
+**SAFETY & PROTECTION Products:**
+- Parking Bollard → Protecting building entrance with vehicles parking nearby, preventing vehicle access to restricted areas
+- Safety Barrier → Creating safe zones in active workplace, protecting workers from hazards
+- Wheel Stop → Preventing vehicle overrun in parking area, showing parking space management
+- Speed Bump → Controlling vehicle speed on driveway/road, showing traffic calming in action
+- Safety Sign → Warning/directing people in facility, showing communication in workplace
+
+**MARKING & IDENTIFICATION Products:**
+- Floor Tape/Markers → Defining walkways/zones in busy warehouse with forklifts and workers following paths
+- Safety Tape → Cordoning off hazard area, showing area control
+- Labels/Signs → Identifying equipment or areas, showing organizational system in use
+
+**EQUIPMENT & TOOLS Products:**
+- Workbench → Worker performing tasks, showing workspace functionality
+- Ladder/Step → Person accessing high shelves or areas, showing access solution
+- Trolley/Cart → Moving materials across facility, showing material handling
+- Lighting → Illuminating work area, showing visibility improvement
 
 💡 VALUE DEMONSTRATION:
 The viewer should instantly understand:
 ✅ What the product does in practice
 ✅ Why it is useful and valuable
 ✅ How it improves workflow, safety, or organization
+✅ Where and when they would use it
+
+🎯 PRODUCT ACCURACY (MANDATORY):
+✅ Must match references exactly — every detail preserved
+✅ No missing features or components
+✅ No design alterations or simplifications
+✅ Exact materials, colors, proportions, textures
+✅ Image must be 1000 × 1000 px (1:1)
+
+📸 CRITICAL: SHOW COMPLETE PRODUCT AS INTENDED:
+- Study ALL reference images to see the product's INTENDED COMPLETE STATE
+- If product is designed to HOLD/STORE items → Show WITH items being stored:
+  * IBC pallet → Show WITH IBC containers actively stored on it
+  * Storage rack → Show WITH items on shelves, person accessing them
+  * Tool cabinet → Show WITH tools organized inside, drawer open
+  * Workbench → Show WITH tools and work in progress
+- If product PROTECTS → Show WHAT it's protecting:
+  * Bollard → Show protecting building/area from vehicle access
+  * Barrier → Show creating safe zone around hazard
+  * Spill pallet → Show containing potential chemical spills
+- If product ORGANIZES → Show the ORGANIZATION in action:
+  * Floor tape → Show organized traffic flow with workers/vehicles
+  * Labels → Show labeled equipment/areas being used correctly
+
+🌍 ENVIRONMENT REQUIREMENTS:
+✅ Must be authentic real-world environment (NOT studio)
+✅ Active workplace showing real use (workers, forklifts, vehicles, tools)
+✅ Should NOT look staged, empty, or sterile
+✅ Real activity visible (forklifts moving, workers walking, vehicles present)
+✅ Proper environmental elements (concrete floors, industrial lighting, outdoor settings)
+✅ Context shows WHY this product is needed (busy area, hazards, organization)
+✅ Show the BUSTLE and PURPOSE of the space
+✅ Must NOT show installation or setup process
+
+ENVIRONMENT VARIATION RULE (MANDATORY):
+The environment in the generated image must be COMPLETELY DIFFERENT from the reference images.
+While the product must remain 100% identical, the background, surroundings, layout, floor type, walls, lighting style, and overall setting must be changed entirely.
+❌ Do NOT replicate or closely match the reference image environment, camera angle, composition, or scene layout.
+Use a new but still realistic and relevant environment where the product would logically be used (e.g. a different warehouse type, different outdoor area, different industrial location).
+The environment must support the same use case but clearly appear as a fresh, original scene, not a copy or variation of the reference background.
 
 👥 PEOPLE (ENCOURAGED):
 ✅ Should be interacting naturally with the product IN USE
-✅ Show people BENEFITING from the product
+✅ Show people BENEFITING from the product:
+  * Workers safely navigating marked pathways (NOT installing tape)
+  * Person accessing organized storage (NOT setting up shelves)
+  * Vehicle respecting bollard protection (NOT workers installing bollard)
+  * Staff following safety signage (NOT hanging signs)
+  * Worker using properly organized workspace (NOT assembling furniture)
 ✅ Wearing correct attire (work clothes, safety gear if appropriate)
 ✅ Must NOT overshadow the product
-❌ NO installation actions, NO setup activities
+✅ Natural and authentic - real work activities, not posed
+❌ NO installation actions, NO setup activities, NO assembly work
 
 🎬 STYLE:
 ✅ Documentary-style photography showing "how it's really used"
 ✅ Medium or wide framing showing product IN CONTEXT
-✅ Realistic environmental lighting
+✅ Realistic environmental lighting (warehouse lights, outdoor daylight, facility lighting)
+✅ Focus on demonstrating REAL-WORLD VALUE
+✅ Authentic and practical - not staged or artificial
+✅ Image must be 1000 × 1000 px (1:1)
+❌ NO text overlays or added graphics
+
+🚫 BRANDING RULES (MANDATORY):
+❌ NO logos on the product
+❌ NO visible company branding anywhere
+❌ NO text overlays or captions
+✅ Generic safety labels only (CAUTION, WARNING, EXIT)
+
+🎯 FINAL RESULT:
+A professional, authentic photograph showing the product in its REAL-WORLD APPLICATION - actively demonstrating its use case and value in an action-oriented scene.
+
+✅ Image must be 1000 × 1000 px (1:1 aspect ratio)
+✅ Product already installed and being USED (not being installed)
+✅ No text, no logos, no branding visible
+✅ Documentary-style showing real application
+✅ Viewer instantly understands: WHAT it does, WHY it's useful, WHERE/HOW to use it
+
+**Think:** "This is exactly how and why customers use this product every day" (NOT "This is how to install it")
+
+✅ Examples of CORRECT application photos:
+- IBC Spill Pallet → Already installed in warehouse with IBC containers stored on it, worker checking inventory (NOT workers installing pallet)
+- Parking Bollard → Already in place protecting entrance, cars parked nearby, pedestrians walking (NOT workers bolting bollard to ground)
+- Floor Tape → Already applied on floor with forklift following route, workers in zones (NOT hands applying tape)
+- Storage Rack → Already assembled with items on shelves, worker retrieving parts (NOT workers assembling rack)
+- Safety Barrier → Already positioned creating safe zone, workers protected (NOT workers setting up barrier)
+- Wheel Stop → Already installed with vehicle tire against it (NOT workers placing wheel stop)
+
+🎯 FINAL NOTE (MANDATORY):
+✅ Use-case only (NO installation, NO setup, NO assembly)
+✅ 1000 × 1000 px (1:1 aspect ratio)
+✅ No text on images anywhere
+"""
+    else:  # "application" variation — for tape, markers, paint, labels, accessories
+        variation_instructions = """
+📸 IMAGE 2: PRODUCT APPLICATION (HANDS APPLYING/USING THE PRODUCT)
+
+🎯 OBJECTIVE:
+Create a realistic scene showing someone actively APPLYING or USING this product in its intended way - appropriate for small items, markers, tape, paint, labels, accessories, etc.
+
+🔒 PRESERVE EXACT PRODUCT APPEARANCE:
+- The product being used must be IDENTICAL to the original reference images
+- Do NOT change the product's color, shape, size, design, or any physical features
+- ONLY show the product being used/applied in a realistic scenario
+- The product is perfect as-is - DO NOT redesign or modify it
+
+🤲 HANDS & APPLICATION:
+- Show HANDS actively applying, using, or handling the product
+- Hands should be in close-up, clearly showing the application process
+- Natural, realistic hand positioning for the specific product type
+- Hands can be wearing work gloves if appropriate (e.g., for industrial markers, tape)
+- Focus on the APPLICATION ACTION - peeling tape, marking floors, applying labels, etc.
+
+🔧 APPLICATION SCENARIOS BY PRODUCT TYPE:
+For FLOOR MARKERS / TAPE / LINES:
+- Show hands applying the marker/tape to a floor surface
+- Display the application process (peeling backing, pressing down, smoothing)
+- Show partially applied product to demonstrate usage
+- Realistic floor surface (concrete, asphalt, warehouse floor)
+
+For PAINT / COATING / SPRAY:
+- Show hands applying paint to appropriate surface
+- May include brush, roller, or spray application
+- Show product container/can being used
+- Realistic application surface
+
+For LABELS / STICKERS / SIGNS:
+- Show hands peeling and applying label
+- Display backing being removed
+- Show application to relevant surface (box, equipment, wall)
+
+For SMALL TOOLS / ACCESSORIES:
+- Show hands using the tool/accessory for its intended purpose
+- Demonstrate proper handling and usage
+- Include any objects the tool interacts with
+
+For SAFETY / PPE ITEMS:
+- Show hands putting on, adjusting, or using the safety item
+- Demonstrate proper usage/placement
+- Show on appropriate body part or location
+
+🌍 ENVIRONMENT & SURFACE:
+- Realistic environment for the product's use case
+- Appropriate surface (floor, wall, equipment, package, etc.)
+- Clean, professional setting
+- Natural or workplace lighting
+- Close-up/macro shot to show detail
+
+📸 COMPOSITION & STYLE:
+- Close-up, detail-focused photography
+- Hands-on demonstration style
+- Clear view of the product being applied/used
+- Professional instructional/tutorial photo quality
+- Sharp focus on hands and product
+- Background slightly blurred to emphasize action
+
+🚫 WHAT NOT TO SHOW:
+- NO heavy machinery or power tools (drills, saws, etc.) unless product specifically requires them
+- NO workers in full high-vis gear (just hands, maybe gloves)
+- NO installation equipment inappropriate for the product
+- NO construction site setting for small/simple products
+- Just hands + product + application surface
+
+🚫 BRANDING:
+- NO brand names or logos on product
+- NO company signage or branded materials
+- Clean product surfaces only
+
+🎯 FINAL RESULT:
+A professional, close-up demonstration photo showing hands actively applying or using the product in its real-world application - clear, instructional, and contextually appropriate for the specific product type.
 """
 
     edit_prompt = f"""You are a professional lifestyle product photographer. Transform this product image into a compelling, real-world application photograph showing the product in use.
@@ -455,9 +723,10 @@ SCENARIO TYPE: {scenario_type}
 
 👤 HUMAN INTERACTION:
 {"LIFESTYLE SCENARIO - Natural, Relaxed Usage:" if scenario_type == "LIFESTYLE" else "ACTIVE USE SCENARIO - Installation/Operation:"}
-{"- Show person naturally using or enjoying the product (sitting, relaxing, etc.)" if scenario_type == "LIFESTYLE" else "- Show professional worker actively using or operating the product"}
+{"- Show person naturally using or enjoying the product (sitting, relaxing, etc.)" if scenario_type == "LIFESTYLE" else "- Show professional worker, craftsman, or user actively installing or operating the product"}
 {"- Person dressed casually and comfortably for the setting" if scenario_type == "LIFESTYLE" else "- Person dressed appropriately (safety gear, work clothes, etc.)"}
-{"- Natural, relaxed posture - enjoying the product" if scenario_type == "LIFESTYLE" else "- Focus on HANDS and product interaction - holding, operating"}
+{"- Natural, relaxed posture - enjoying the product" if scenario_type == "LIFESTYLE" else "- Focus on HANDS and product interaction - holding, installing, operating"}
+{"- Person can be partially visible or in background" if scenario_type == "LIFESTYLE" else "- Person's face can be partially visible or out of focus"}
 {"- Authentic lifestyle moment captured naturally" if scenario_type == "LIFESTYLE" else "- Natural, authentic body language and realistic usage posture"}
 
 🏗️ ENVIRONMENT & SETTING:
@@ -465,18 +734,38 @@ SCENARIO TYPE: {scenario_type}
 {"- Outdoor garden, patio, deck, backyard, or beautiful home setting" if scenario_type == "LIFESTYLE" else "- Job site, workshop, garage, construction area, or workplace"}
 {"- Lush greenery, flowers, natural landscaping in background (softly blurred)" if scenario_type == "LIFESTYLE" else "- Work surfaces, tools, equipment, materials in background (blurred)"}
 {"- Natural sunlight, golden hour lighting, or soft outdoor illumination" if scenario_type == "LIFESTYLE" else "- Workshop lighting, natural daylight, or work environment lighting"}
+{"- Well-maintained, inviting outdoor or home environment" if scenario_type == "LIFESTYLE" else "- Realistic workplace with authentic surfaces (concrete, metal, wood)"}
+{"- NO workplace signage needed - pure lifestyle aesthetic" if scenario_type == "LIFESTYLE" else "- Optional: Safety signs in background (CAUTION, WARNING, EXIT) for authenticity"}
 
 📸 PROFESSIONAL PHOTOGRAPHY QUALITY:
-1. Photorealistic, looks like actual product photography
+1. Photorealistic, looks like actual {"lifestyle magazine" if scenario_type == "LIFESTYLE" else "documentary-style"} product photography
 2. Natural lighting appropriate to the environment
 3. Shallow depth of field - product and person in focus, background beautifully blurred
 4. Professional color grading with authentic, natural tones
-5. Camera angle: Eye-level or slightly above, showing product in perfect context
+5. {"Inviting, aspirational composition showing desirable lifestyle" if scenario_type == "LIFESTYLE" else "Dynamic composition showing action, movement, or active use"}
+6. Camera angle: Eye-level or slightly above, showing product in perfect context
 
-ENVIRONMENT VARIATION RULE (MANDATORY):
-The environment in the generated image must be COMPLETELY DIFFERENT from the reference images.
-While the product must remain 100% identical, the background, surroundings, layout, floor type, walls, lighting style, and overall setting must be changed entirely.
-❌ Do NOT replicate or closely match the reference image environment, camera angle, composition, or scene layout.
+🎨 REALISM & AUTHENTICITY:
+1. Must look like a REAL PHOTOGRAPH, not CGI or artificial
+2. Natural textures, authentic materials
+3. {"Beautiful, well-maintained environment - NOT overly perfect, naturally inviting" if scenario_type == "LIFESTYLE" else "Genuine work environment - NOT overly clean or staged"}
+4. Realistic lighting with natural shadows
+5. Authentic product proportions and scale relative to human body
+
+🔍 CRITICAL: ANALYZE ALL REFERENCE IMAGES TO UNDERSTAND THE COMPLETE PRODUCT:
+1. Study ALL provided reference images carefully - they show the COMPLETE product setup
+2. Look at what the reference images show:
+   - If images show a container/tank ON a pallet → generate with container ON pallet
+   - If images show a rack WITH items stored → generate with items IN/ON the rack
+   - If images show a holder WITH tools/objects → generate with those objects in place
+   - The reference images show the INTENDED COMPLETE SETUP - replicate that!
+3. Understand the product's PURPOSE from reference images:
+   - Pallets HOLD containers/IBCs - show them holding the containers
+   - Racks STORE items - show them with items stored
+   - Stands SUPPORT equipment - show them supporting equipment
+   - If you only see the base/structure in some images, check OTHER images for complete setup
+4. Cross-reference ALL images to see the full context and intended use
+5. Generate the product exactly as shown in reference images - COMPLETE and FUNCTIONAL
 
 🚫 BRAND & LOGO REMOVAL - CRITICAL:
 1. Remove ALL text from the PRODUCT itself:
@@ -487,12 +776,29 @@ While the product must remain 100% identical, the background, surroundings, layo
 
 2. KEEP realistic environmental text for authenticity:
    ✅ KEEP: Safety signs ("DANGER", "CAUTION", "WARNING", "SAFETY FIRST")
-   ✅ KEEP: Directional signs ("EXIT", "ENTRANCE")
-   ✅ KEEP: Generic workplace signage
+   ✅ KEEP: Directional signs ("EXIT", "ENTRANCE", "UP", "DOWN")
+   ✅ KEEP: Generic workplace signage ("FIRE EXTINGUISHER", "FIRST AID")
+   ✅ KEEP: Measurement markings on tools or rulers in background
+   ✅ KEEP: Generic instructional text on equipment
 
 3. REMOVE from environment:
    ❌ REMOVE: Company names, business logos, brand names
+   ❌ REMOVE: Specific company signage or branded posters
+   ❌ REMOVE: Manufacturer logos on background equipment
    ❌ REMOVE: Phone numbers, websites, email addresses
+
+4. Environmental text should be:
+   - Generic and universal (not company-specific)
+   - Safety-oriented or functional
+   - Realistic for the work environment
+   - Not promotional or branded
+
+✅ WHAT TO SHOW:
+1. Product in ACTIVE USE or being handled/installed
+2. Appropriate human interaction (hands holding, using, installing)
+3. Real-world application environment
+4. Natural, realistic usage scenario
+5. Professional, engaging composition that tells a story
 
 🎯 FINAL RESULT:
 A compelling, photorealistic lifestyle image showing the product being used in its intended real-world application, with appropriate human interaction and environment - professional, authentic, engaging, and completely text-free.
