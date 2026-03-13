@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from scraper import scrape_collection, scrape_product_page
+from scraper import scrape_collection, scrape_product_page, scrape_full_site
 from ai_generator import generate_listing, generate_images_for_product, init_openai
 from shopify_uploader import ShopifyUploader
 
@@ -25,9 +25,10 @@ jobs = {}
 
 
 class Job:
-    def __init__(self, job_id, collection_url, store, client_id, client_secret, generate_images=True, image_provider="gemini"):
+    def __init__(self, job_id, collection_url, store, client_id, client_secret, generate_images=True, image_provider="gemini", site_url=None):
         self.id = job_id
         self.collection_url = collection_url
+        self.site_url = site_url
         self.store = store
         self.client_id = client_id
         self.client_secret = client_secret
@@ -78,12 +79,19 @@ def process_job(job):
         uploader.authenticate()
         job.log("✅ Shopify authenticated")
 
-        # Scrape collection
-        job.log("🔍 Scraping collection page...")
-        collection_data = scrape_collection(
-            job.collection_url,
-            progress_callback=lambda msg: job.log(msg)
-        )
+        # Scrape collection or full site
+        if job.site_url:
+            job.log("🌐 Scraping full website...")
+            collection_data = scrape_full_site(
+                job.site_url,
+                progress_callback=lambda msg: job.log(msg)
+            )
+        else:
+            job.log("🔍 Scraping collection page...")
+            collection_data = scrape_collection(
+                job.collection_url,
+                progress_callback=lambda msg: job.log(msg)
+            )
 
         collection_name = collection_data["collection_name"]
         website_name = collection_data["website_name"]
@@ -183,17 +191,20 @@ def index():
 def start_job():
     data = request.json
     collection_url = data.get("collection_url", "").strip()
+    site_url = data.get("site_url", "").strip()
     store = data.get("store", "").strip()
     client_id = data.get("client_id", "").strip()
     client_secret = data.get("client_secret", "").strip()
     generate_images = data.get("generate_images", True)
     image_provider = data.get("image_provider", "gemini")
 
-    if not all([collection_url, store, client_id, client_secret]):
-        return jsonify({"error": "All fields are required"}), 400
+    if not site_url and not collection_url:
+        return jsonify({"error": "Either a collection URL or full website URL is required"}), 400
+    if not all([store, client_id, client_secret]):
+        return jsonify({"error": "Shopify store credentials are required"}), 400
 
     job_id = f"job_{int(time.time())}"
-    job = Job(job_id, collection_url, store, client_id, client_secret, generate_images, image_provider)
+    job = Job(job_id, collection_url or site_url, store, client_id, client_secret, generate_images, image_provider, site_url=site_url if site_url else None)
     jobs[job_id] = job
 
     # Start background thread

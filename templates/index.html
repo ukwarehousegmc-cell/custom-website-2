@@ -543,9 +543,17 @@
                 </div>
             </div>
             <div class="form-grid">
-                <div class="field full">
-                    <label>Collection URL</label>
+                <div class="field full" style="position:relative">
+                    <label>Collection URL <span style="color:#888;font-weight:400;font-size:12px">— scrape a single collection</span></label>
                     <input type="url" id="collectionUrl" placeholder="https://example.com/collections/safety-products">
+                </div>
+                <div class="field full" style="position:relative">
+                    <div style="text-align:center;padding:4px 0;color:#888;font-size:12px;font-weight:600;letter-spacing:2px">— OR —</div>
+                </div>
+                <div class="field full" style="position:relative">
+                    <label>🌐 Full Website URL <span style="color:#888;font-weight:400;font-size:12px">— scrape ALL products from entire site</span></label>
+                    <input type="url" id="siteUrl" placeholder="https://example.com" style="border:2px solid #6c5ce7;background:rgba(108,92,231,0.03)">
+                    <small style="color:#6c5ce7;margin-top:4px;display:block">Enter homepage URL or domain to scrape every product on the site</small>
                 </div>
                 <div class="field">
                     <label>Shopify Store</label>
@@ -816,29 +824,39 @@
         }
 
         async function startJob() {
-            const url = document.getElementById('collectionUrl').value.trim();
+            const collectionUrl = document.getElementById('collectionUrl').value.trim();
+            const siteUrl = document.getElementById('siteUrl').value.trim();
             const store = document.getElementById('store').value.trim();
             const clientId = document.getElementById('clientId').value.trim();
             const clientSecret = document.getElementById('clientSecret').value.trim();
             const imageProvider = getImageProvider();
             const genImages = imageProvider !== 'none';
 
-            if (!url || !store || !clientId || !clientSecret) return alert('Please fill in all fields');
+            if (!collectionUrl && !siteUrl) return alert('Enter either a Collection URL or Full Website URL');
+            if (!store || !clientId || !clientSecret) return alert('Please fill in Shopify credentials');
+            if (collectionUrl && siteUrl) return alert('Use either Collection URL or Full Website URL, not both');
 
             saveConfig();
             document.getElementById('startBtn').disabled = true;
             document.getElementById('progressCard').classList.add('active');
 
             try {
+                const payload = {
+                    store,
+                    client_id: clientId, client_secret: clientSecret,
+                    generate_images: genImages,
+                    image_provider: imageProvider
+                };
+                if (siteUrl) {
+                    payload.site_url = siteUrl;
+                } else {
+                    payload.collection_url = collectionUrl;
+                }
+
                 const resp = await fetch('/api/start', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        collection_url: url, store,
-                        client_id: clientId, client_secret: clientSecret,
-                        generate_images: genImages,
-                        image_provider: imageProvider
-                    })
+                    body: JSON.stringify(payload)
                 });
                 const data = await resp.json();
 

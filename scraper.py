@@ -475,3 +475,172 @@ def scrape_collection(collection_url, progress_callback=None):
         "total_products": len(products),
         "products": products,
     }
+
+
+def scrape_full_site(site_url, progress_callback=None):
+    """
+    Scrape ALL products from a website (not just one collection).
+    Works for Shopify stores via /products.json and sitemap.
+    Falls back to crawling collection pages for non-Shopify sites.
+    """
+    session = requests.Session()
+    parsed = urlparse(site_url)
+    base_url = f"{parsed.scheme}://{parsed.netloc}"
+    website_name = parsed.netloc.replace("www.", "")
+
+    if progress_callback:
+        progress_callback(f"🌐 Starting full site scrape: {website_name}")
+
+    # ── Try Shopify /products.json (paginated) ──
+    all_products = []
+    page = 1
+    is_shopify = False
+
+    try:
+        while True:
+            json_url = f"{base_url}/products.json?limit=250&page={page}"
+            if progress_callback:
+                progress_callback(f"🔍 Trying Shopify API page {page}...")
+
+            resp = session.get(json_url, headers=HEADERS, timeout=30)
+            if resp.status_code != 200:
+                break
+
+            data = resp.json()
+            products = data.get("products", [])
+            if not products:
+                break
+
+            is_shopify = True
+            all_products.extend(products)
+
+            if progress_callback:
+                progress_callback(f"✅ Page {page}: found {len(products)} products (total: {len(all_products)})")
+
+            if len(products) < 250:
+                break
+
+            page += 1
+            time.sleep(1)
+    except Exception as e:
+        if progress_callback:
+            progress_callback(f"⚠️ Shopify API error: {e}")
+
+    if is_shopify and all_products:
+        if progress_callback:
+            progress_callback(f"🎯 Shopify store detected! Total products: {len(all_products)}")
+
+        products = []
+        for i, sp in enumerate(all_products):
+            if progress_callback:
+                progress_callback(f"📦 Processing {i+1}/{len(all_products)}: {sp.get('title', 'Unknown')}")
+            product_data = scrape_shopify_product(sp, base_url, "All Products", website_name)
+            products.append(product_data)
+
+        return {
+            "collection_url": site_url,
+            "collection_name": "All Products",
+            "website_name": website_name,
+            "total_products": len(products),
+            "products": products,
+        }
+
+    # ── Non-Shopify: crawl sitemap or homepage for collections ──
+    if progress_callback:
+        progress_callback("⚠️ Not a Shopify store. Crawling sitemap & collections...")
+
+    # Try sitemap first
+    collection_urls = set()
+    product_urls = set()
+
+    for sitemap_path in ["/sitemap.xml", "/sitemap_products_1.xml", "/sitemap_collections_1.xml"]:
+        try:
+            resp = session.get(f"{base_url}{sitemap_path}", headers=HEADERS, timeout=15)
+            if resp.status_code == 200:
+                soup = BeautifulSoup(resp.text, "lxml-xml")
+                for loc in soup.find_all("loc"):
+                    url = loc.text.strip()
+                    if "/collections/" in url and "/products/" not in url:
+                        collection_urls.add(url)
+                    elif "/products/" in url:
+                        product_urls.add(url)
+                if progress_callback:
+                    progress_callback(f"📍 Sitemap {sitemap_path}: {len(collection_urls)} collections, {len(product_urls)} products")
+        except Exception:
+            pass
+
+    # If we found product URLs in sitemap, scrape them directly
+    if product_urls:
+        if progress_callback:
+            progress_callback(f"🎯 Found {len(product_urls)} product URLs in sitemap. Scraping...")
+
+        products = []
+        for i, url in enumerate(product_urls):
+            if progress_callback:
+                progress_callback(f"Scraping product {i+1}/{len(product_urls)}: {url}")
+            try:
+                product_data, session = scrape_product_page(url, session)
+                products.append(product_data)
+                time.sleep(0.5)
+            except Exception as e:
+                if progress_callback:
+                    progress_callback(f"Error scraping {url}: {e}")
+                products.append({"url": url, "error": str(e)})
+
+        return {
+            "collection_url": site_url,
+            "collection_name": "All Products",
+            "website_name": website_name,
+            "total_products": len(products),
+            "products": products,
+        }
+
+    # Fallback: scrape each collection found
+    if collection_urls:
+        if progress_callback:
+            progress_callback(f"📂 Found {len(collection_urls)} collections. Scraping each...")
+
+        all_scraped = []
+        for i, curl in enumerate(collection_urls):
+            if progress_callback:
+                progress_callback(f"📂 Collection {i+1}/{len(collection_urls)}: {curl}")
+            try:
+                result = scrape_collection(curl, progress_callback)
+                all_scraped.extend(result.get("products", []))
+            except Exception as e:
+                if progress_callback:
+                    progress_callback(f"Error on collection {curl}: {e}")
+
+        return {
+            "collection_url": site_url,
+            "collection_name": "All Products",
+            "website_name": website_name,
+            "total_products": len(all_scraped),
+            "products": all_scraped,
+        }
+
+    # Last resort: crawl homepage for product links
+    if progress_callback:
+        progress_callback("🔎 No sitemap found. Crawling homepage for product links...")
+
+    soup, session = get_soup(base_url, session)
+    links = extract_product_links(soup, base_url)
+
+    products = []
+    for i, link in enumerate(links):
+        if progress_callback:
+            progress_callback(f"Scraping {i+1}/{len(links)}: {link}")
+        try:
+            product_data, session = scrape_product_page(link, session)
+            products.append(product_data)
+            time.sleep(0.5)
+        except Exception as e:
+            products.append({"url": link, "error": str(e)})
+
+    return {
+        "collection_url": site_url,
+        "collection_name": "All Products",
+        "website_name": website_name,
+        "total_products": len(products),
+        "products": products,
+    }
