@@ -58,8 +58,10 @@ STRICT RULES:
    - ANY model numbers, part numbers, SKUs, or product codes from the reference website
    - Do NOT include reference product codes in title, description, specifications, tags, or anywhere
    - If the original title contains a model/part number (e.g., "ABC-1234", "SKU: XYZ"), REMOVE it completely
-   - Emails, phone numbers, shipping details
+   - Emails, phone numbers, postal addresses, physical addresses, contact details of ANY kind
+   - Shipping details, delivery information from the reference website
    - Links, image URLs, download links
+   - Supplier names, distributor names, manufacturer names, company registration numbers
    - Do NOT mention the source/supplier brand ANYWHERE — not in title, description, tags, features, specs, or FAQ
    - If the original product title contains a brand name, REMOVE it and rewrite without it
    - Replace brand references with generic terms (e.g., "premium quality" instead of brand name)
