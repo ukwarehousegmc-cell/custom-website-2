@@ -256,13 +256,46 @@ def scrape_product_page(url, session=None):
     h1 = soup.find("h1")
     data["title"] = h1.get_text(strip=True) if h1 else ""
     
-    # Price(s) — check class="text-lg" first (regular price), then fallback to price classes
+    # Price(s) — prefer "Regular price" over "Member price" / discounted price
     prices = []
-    text_lg = soup.find(class_="text-lg")
-    if text_lg:
-        text = text_lg.get_text(strip=True)
-        found = re.findall(r"£[\d,]+\.?\d*", text)
-        prices.extend(found)
+    # Strategy 1: Look for "Regular price" label near a text-lg element
+    for text_lg in soup.find_all(class_="text-lg"):
+        parent = text_lg.parent
+        if parent:
+            parent_text = parent.get_text(strip=True).lower()
+            if "regular" in parent_text:
+                found = re.findall(r"[\d,]+\.?\d*", text_lg.get_text(strip=True))
+                if found:
+                    prices.append(f"£{found[0]}")
+                    break
+    # Strategy 2: Look for any container with "Regular price" text and extract £ amount
+    if not prices:
+        for el in soup.find_all(string=re.compile(r"Regular\s+price", re.I)):
+            container = el.parent
+            if container:
+                # Check siblings/parent for price
+                parent = container.parent
+                if parent:
+                    found = re.findall(r"[\d,]+\.?\d*\s*£|£\s*[\d,]+\.?\d*|[\d,]+\.?\d*\s*£\s*incl", parent.get_text())
+                    if not found:
+                        found = re.findall(r"([\d,]+\.?\d*)\s*£", parent.get_text())
+                    if found:
+                        price_str = re.sub(r"[^\d.]", "", found[0])
+                        if price_str:
+                            prices.append(f"£{price_str}")
+                            break
+    # Strategy 3: Fallback to text-lg (first one with a price)
+    if not prices:
+        for text_lg in soup.find_all(class_="text-lg"):
+            text = text_lg.get_text(strip=True)
+            found = re.findall(r"£[\d,]+\.?\d*", text)
+            if not found:
+                found = re.findall(r"([\d,]+\.?\d*)\s*£", text)
+                found = [f"£{f}" for f in found]
+            if found:
+                prices.extend(found)
+                break
+    # Strategy 4: Fallback to price classes
     if not prices:
         for el in soup.find_all(class_=re.compile(r"price", re.I)):
             text = el.get_text(strip=True)

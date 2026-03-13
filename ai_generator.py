@@ -48,7 +48,7 @@ STRICT RULES:
 
 6. VARIANTS: Include ALL variants exactly as shown — sizes, colours, dimensions. Do NOT miss any. Do NOT guess.
 
-7. PRICING: Selling price = reference price (inc VAT) × 2
+7. PRICING: Selling price = REGULAR price (inc VAT) × 2. Use the REGULAR price, NOT the member/discounted price. If multiple prices are shown, use the HIGHEST one (that's the regular price).
 
 8. INVENTORY: Always disabled.
 
