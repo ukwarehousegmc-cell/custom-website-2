@@ -553,21 +553,79 @@ def scrape_full_site(site_url, progress_callback=None):
     collection_urls = set()
     product_urls = set()
 
-    for sitemap_path in ["/sitemap.xml", "/sitemap_products_1.xml", "/sitemap_collections_1.xml"]:
+    for sitemap_path in ["/sitemap.xml", "/pub/sitemap.xml", "/sitemap_products_1.xml", "/sitemap_collections_1.xml"]:
         try:
             resp = session.get(f"{base_url}{sitemap_path}", headers=HEADERS, timeout=15)
             if resp.status_code == 200:
                 soup = BeautifulSoup(resp.text, "lxml-xml")
-                for loc in soup.find_all("loc"):
-                    url = loc.text.strip()
-                    if "/collections/" in url and "/products/" not in url:
-                        collection_urls.add(url)
-                    elif "/products/" in url:
+                
+                # Check for sitemap index (contains links to other sitemaps)
+                sub_sitemaps = soup.find_all("sitemap")
+                if sub_sitemaps:
+                    for sm in sub_sitemaps:
+                        loc = sm.find("loc")
+                        if loc:
+                            sub_url = loc.text.strip()
+                            try:
+                                sr = session.get(sub_url, headers=HEADERS, timeout=15)
+                                if sr.status_code == 200:
+                                    sub_soup = BeautifulSoup(sr.text, "lxml-xml")
+                                    for url_tag in sub_soup.find_all("url"):
+                                        loc_tag = url_tag.find("loc")
+                                        if not loc_tag:
+                                            continue
+                                        url = loc_tag.text.strip()
+                                        has_image = url_tag.find("image:image") is not None
+                                        if "/products/" in url or has_image:
+                                            product_urls.add(url)
+                                        elif "/collections/" in url:
+                                            collection_urls.add(url)
+                            except Exception:
+                                pass
+                    if progress_callback:
+                        progress_callback(f"📍 Sitemap index: {len(collection_urls)} collections, {len(product_urls)} products")
+                    continue
+                
+                # Regular sitemap — detect products by image tags OR URL patterns
+                for url_tag in soup.find_all("url"):
+                    loc_tag = url_tag.find("loc")
+                    if not loc_tag:
+                        continue
+                    url = loc_tag.text.strip()
+                    has_image = url_tag.find("image:image") is not None
+                    
+                    # Skip homepage
+                    parsed_url = urlparse(url)
+                    if parsed_url.path in ['/', '']:
+                        continue
+                    
+                    # Product detection: has product image, or URL contains /products/
+                    if "/products/" in url:
                         product_urls.add(url)
+                    elif has_image:
+                        # URL with product images = likely a product page (works for Magento, WooCommerce, etc.)
+                        product_urls.add(url)
+                    elif "/collections/" in url or "/category/" in url:
+                        collection_urls.add(url)
+                    
                 if progress_callback:
-                    progress_callback(f"📍 Sitemap {sitemap_path}: {len(collection_urls)} collections, {len(product_urls)} products")
+                    progress_callback(f"📍 Sitemap {sitemap_path}: {len(collection_urls)} collections, {len(product_urls)} product URLs (with images)")
         except Exception:
             pass
+    
+    # De-duplicate: remove category pages from products (pages that appear as both)
+    # For Magento-style sites, filter out URLs that are clearly categories
+    # Categories typically have many sub-URLs; products are leaf pages
+    if product_urls:
+        category_prefixes = set()
+        for pu in list(product_urls):
+            for pu2 in list(product_urls):
+                if pu != pu2 and pu2.startswith(pu.rstrip('/') + '/'):
+                    category_prefixes.add(pu)
+                    break
+        product_urls -= category_prefixes
+        if progress_callback and category_prefixes:
+            progress_callback(f"🔄 Filtered out {len(category_prefixes)} category pages, {len(product_urls)} actual products remain")
 
     # If we found product URLs in sitemap, scrape them directly
     if product_urls:
