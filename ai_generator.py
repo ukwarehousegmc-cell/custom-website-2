@@ -55,6 +55,9 @@ STRICT RULES:
 9. DO NOT INCLUDE (VERY IMPORTANT — STRICTLY FORBIDDEN):
    - ANY brand names from the reference website (manufacturer names, supplier names, store names)
    - The reference website name or domain
+   - ANY model numbers, part numbers, SKUs, or product codes from the reference website
+   - Do NOT include reference product codes in title, description, specifications, tags, or anywhere
+   - If the original title contains a model/part number (e.g., "ABC-1234", "SKU: XYZ"), REMOVE it completely
    - Emails, phone numbers, shipping details
    - Links, image URLs, download links
    - Do NOT mention the source/supplier brand ANYWHERE — not in title, description, tags, features, specs, or FAQ
