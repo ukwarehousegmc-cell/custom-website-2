@@ -197,7 +197,7 @@ def start_job():
     jobs[job_id] = job
 
     # Start background thread
-    thread = threading.Thread(target=process_job, args=(job,), daemon=True)
+    thread = threading.Thread(target=process_job, args=(job,), daemon=False)
     thread.start()
 
     return jsonify({"job_id": job_id, "message": "Job started"})

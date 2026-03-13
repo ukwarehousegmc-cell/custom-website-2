@@ -658,7 +658,7 @@
         let currentJobId = null;
         let pollInterval = null;
 
-        window.addEventListener('load', () => {
+        window.addEventListener('load', async () => {
             const saved = localStorage.getItem('shopify_config');
             if (saved) {
                 const cfg = JSON.parse(saved);
@@ -666,7 +666,98 @@
                 document.getElementById('clientId').value = cfg.clientId || '';
                 document.getElementById('clientSecret').value = cfg.clientSecret || '';
             }
+
+            // Auto-reconnect to active jobs on page load
+            await reconnectActiveJob();
         });
+
+        async function reconnectActiveJob() {
+            try {
+                // Check localStorage for last job ID
+                const savedJobId = localStorage.getItem('active_job_id');
+                
+                // Fetch all jobs from server
+                const resp = await fetch('/api/jobs');
+                const allJobs = await resp.json();
+                
+                // Find any running job (scraping, generating, uploading, pending)
+                const activeJob = allJobs.find(j => 
+                    ['pending', 'scraping', 'generating', 'uploading', 'running'].includes(j.status)
+                );
+                
+                // Or reconnect to saved job if it exists (even if completed, show results)
+                const targetJob = activeJob || (savedJobId ? allJobs.find(j => j.id === savedJobId) : null);
+                
+                if (targetJob) {
+                    currentJobId = targetJob.id;
+                    localStorage.setItem('active_job_id', currentJobId);
+                    
+                    // Show the progress UI
+                    document.getElementById('progressCard').classList.add('active');
+                    
+                    // Update UI with current state
+                    updateUI(targetJob);
+                    
+                    // If still running, start polling
+                    if (['pending', 'scraping', 'generating', 'uploading', 'running'].includes(targetJob.status)) {
+                        document.getElementById('startBtn').disabled = true;
+                        document.getElementById('stopBtn').style.display = 'inline-flex';
+                        pollInterval = setInterval(pollStatus, 2000);
+                    }
+                }
+            } catch(e) {
+                console.log('No active jobs to reconnect:', e);
+            }
+        }
+
+        function updateUI(data) {
+            document.getElementById('statTotal').textContent = data.products_total;
+            document.getElementById('statDone').textContent = data.products_done;
+            document.getElementById('statFailed').textContent = data.products_failed;
+
+            const pct = data.products_total ? Math.round(data.products_done / data.products_total * 100) : 0;
+            document.getElementById('progressBar').style.width = pct + '%';
+            document.getElementById('progressPct').textContent = pct + '%';
+
+            const badge = document.getElementById('statusBadge');
+            badge.innerHTML = `<span class="badge-dot"></span> ${data.status}`;
+            badge.className = 'badge badge-' + data.status;
+
+            const logBox = document.getElementById('logBox');
+            logBox.innerHTML = data.logs.map(l => {
+                let cls = '';
+                if (l.includes('✅')) cls = 'success';
+                else if (l.includes('❌') || l.includes('💥')) cls = 'error';
+                else if (l.includes('⚠️')) cls = 'warn';
+                else if (l.includes('🤖') || l.includes('🔍') || l.includes('📤') || l.includes('🎨') || l.includes('📷')) cls = 'info';
+                return `<p class="${cls}">${l}</p>`;
+            }).join('');
+            logBox.scrollTop = logBox.scrollHeight;
+
+            if (data.results && data.results.length > 0) {
+                document.getElementById('resultsCard').classList.add('active');
+                const successCount = data.results.filter(r => r.status === 'success').length;
+                document.getElementById('resultCount').textContent = `${successCount} products created`;
+
+                document.getElementById('resultsBody').innerHTML = data.results.map(r => {
+                    if (r.status === 'success') {
+                        return `<div class="result-row">
+                            <div class="result-icon ok">✅</div>
+                            <div class="result-title">${r.shopify_title}</div>
+                            <div class="result-meta">${r.variants} variants</div>
+                            <div class="result-meta">${r.images} images</div>
+                            <a class="result-link" href="${r.admin_url}" target="_blank">View in Shopify →</a>
+                        </div>`;
+                    } else {
+                        return `<div class="result-row">
+                            <div class="result-icon fail">❌</div>
+                            <div class="result-title">${r.source_title}</div>
+                            <div class="result-error">${r.error}</div>
+                        </div>`;
+                    }
+                }).join('');
+            }
+        }
 
         function handleImageToggle(source) {
             const gemini = document.getElementById('geminiImages');
@@ -758,6 +849,7 @@
                 }
 
                 currentJobId = data.job_id;
+                localStorage.setItem('active_job_id', currentJobId);
                 document.getElementById('stopBtn').style.display = 'inline-flex';
                 pollInterval = setInterval(pollStatus, 2000);
             } catch(e) {
@@ -783,55 +875,11 @@
                 const resp = await fetch(`/api/status/${currentJobId}`);
                 const data = await resp.json();
 
-                document.getElementById('statTotal').textContent = data.products_total;
-                document.getElementById('statDone').textContent = data.products_done;
-                document.getElementById('statFailed').textContent = data.products_failed;
-
-                const pct = data.products_total ? Math.round(data.products_done / data.products_total * 100) : 0;
-                document.getElementById('progressBar').style.width = pct + '%';
-                document.getElementById('progressPct').textContent = pct + '%';
-
-                const badge = document.getElementById('statusBadge');
-                badge.innerHTML = `<span class="badge-dot"></span> ${data.status}`;
-                badge.className = 'badge badge-' + data.status;
-
-                const logBox = document.getElementById('logBox');
-                logBox.innerHTML = data.logs.map(l => {
-                    let cls = '';
-                    if (l.includes('✅')) cls = 'success';
-                    else if (l.includes('❌') || l.includes('💥')) cls = 'error';
-                    else if (l.includes('⚠️')) cls = 'warn';
-                    else if (l.includes('🤖') || l.includes('🔍') || l.includes('📤') || l.includes('🎨') || l.includes('📷')) cls = 'info';
-                    return `<p class="${cls}">${l}</p>`;
-                }).join('');
-                logBox.scrollTop = logBox.scrollHeight;
-
-                if (data.results.length > 0) {
-                    document.getElementById('resultsCard').classList.add('active');
-                    const successCount = data.results.filter(r => r.status === 'success').length;
-                    document.getElementById('resultCount').textContent = `${successCount} products created`;
-
-                    document.getElementById('resultsBody').innerHTML = data.results.map(r => {
-                        if (r.status === 'success') {
-                            return `<div class="result-row">
-                                <div class="result-icon ok">✅</div>
-                                <div class="result-title">${r.shopify_title}</div>
-                                <div class="result-meta">${r.variants} variants</div>
-                                <div class="result-meta">${r.images} images</div>
-                                <a class="result-link" href="${r.admin_url}" target="_blank">View in Shopify →</a>
-                            </div>`;
-                        } else {
-                            return `<div class="result-row">
-                                <div class="result-icon fail">❌</div>
-                                <div class="result-title">${r.source_title}</div>
-                                <div class="result-error">${r.error}</div>
-                            </div>`;
-                        }
-                    }).join('');
-                }
+                updateUI(data);
 
                 if (data.status === 'completed' || data.status === 'error' || data.status === 'stopped') {
                     clearInterval(pollInterval);
+                    localStorage.removeItem('active_job_id');
                     document.getElementById('startBtn').disabled = false;
                     document.getElementById('stopBtn').style.display = 'none';
                 }
