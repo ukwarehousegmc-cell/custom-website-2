@@ -77,6 +77,7 @@ def process_job(job):
         # Initialize Shopify
         uploader = ShopifyUploader(job.store, job.client_id, job.client_secret)
         uploader.authenticate()
+        bundle_template_created = False
         job.log("✅ Shopify authenticated")
 
         # Scrape collection or full site
@@ -144,6 +145,12 @@ def process_job(job):
 
                 # Upload to Shopify
                 job.log("📤 Uploading to Shopify...")
+                # Ensure bundle template exists for bundle products
+                if listing.get("is_bundle") and not bundle_template_created:
+                    job.log("🎨 Creating bundle product template on store...")
+                    uploader.ensure_bundle_template()
+                    bundle_template_created = True
+                
                 result = uploader.create_product(listing, images if images else None)
                 job.log(f"✅ Product created: {result['title']}")
                 job.log(f"   ID: {result['id']} | Variants: {result['variants_count']} | Images: {result['images_count']}")

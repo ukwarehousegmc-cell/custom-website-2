@@ -378,6 +378,67 @@ def scrape_product_page(url, session=None):
             breadcrumbs.append(a.get_text(strip=True))
     data["breadcrumbs"] = breadcrumbs
     
+    # ── Magento Bundle Options (custom properties) ──
+    bundle_options = []
+    page_text = str(soup)
+    
+    # Extract optionConfig JSON from Magento bundle products
+    option_match = re.search(r'"optionConfig"\s*:\s*(\{.*?"positions"\s*:\s*\[.*?\].*?\})', page_text)
+    if option_match:
+        try:
+            option_config = json.loads(option_match.group(1))
+            positions = option_config.get("positions", [])
+            base_prices = option_config.get("prices", {})
+            base_price = base_prices.get("finalPrice", {}).get("amount", 0)
+            
+            for pos in positions:
+                opt_data = option_config.get("options", {}).get(str(pos), {})
+                if not opt_data:
+                    continue
+                
+                title = opt_data.get("title", "")
+                selections = opt_data.get("selections", {})
+                
+                option_items = []
+                for sel_id, sel_data in selections.items():
+                    price_amount = sel_data.get("prices", {}).get("finalPrice", {}).get("amount", 0)
+                    if isinstance(price_amount, str):
+                        price_amount = float(price_amount) if price_amount else 0
+                    
+                    option_items.append({
+                        "id": sel_id,
+                        "name": sel_data.get("name", ""),
+                        "price_adjustment": float(price_amount),
+                    })
+                
+                # Detect if this is a colour option (thumbnails with images)
+                is_colour = "colour" in title.lower() or "color" in title.lower()
+                
+                # Try to extract colour swatches/thumbnails
+                colour_images = {}
+                if is_colour:
+                    for li in soup.find_all("li", id=re.compile(r"li-\d+")):
+                        li_id = li.get("id", "").replace("li-", "")
+                        img = li.find("img")
+                        if img and img.get("src"):
+                            colour_images[li_id] = urljoin(url, img["src"])
+                
+                bundle_options.append({
+                    "title": title,
+                    "required": True,
+                    "type": "colour_swatch" if is_colour else "dropdown",
+                    "items": option_items,
+                    "colour_images": colour_images if colour_images else None,
+                })
+            
+            if bundle_options:
+                data["bundle_options"] = bundle_options
+                data["base_price"] = float(base_price)
+                data["is_bundle"] = True
+                
+        except (json.JSONDecodeError, KeyError, ValueError):
+            pass
+    
     # Full text
     body = soup.find("body")
     data["full_text"] = body.get_text(separator="\n", strip=True)[:15000] if body else ""

@@ -164,6 +164,18 @@ FULL PAGE TEXT (for additional context):
     )
 
     result = json.loads(response.choices[0].message.content)
+    
+    # Pass through bundle options if present (not AI-generated, scraped directly)
+    if product_data.get("is_bundle") and product_data.get("bundle_options"):
+        result["bundle_options"] = product_data["bundle_options"]
+        result["base_price"] = product_data.get("base_price", 0)
+        result["is_bundle"] = True
+        # For bundle products, use single variant with base price
+        if result.get("variants"):
+            result["variants"] = [result["variants"][0]]
+        if not result.get("variants"):
+            result["variants"] = [{"option1": "Default", "price": str(product_data.get("base_price", "0.00"))}]
+    
     return result
 
 
