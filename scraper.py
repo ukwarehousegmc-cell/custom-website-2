@@ -639,6 +639,147 @@ def try_magento_graphql(base_url, url_path, progress_callback=None):
         return None
 
 
+def try_algolia_search(base_url, collection_url, collection_name, progress_callback=None):
+    """Try to scrape products via Algolia search API (used by Magento 2 Hyva frontends)."""
+    session = requests.Session()
+    
+    if progress_callback:
+        progress_callback("🔍 Checking for Algolia search API...")
+    
+    try:
+        # Load the page to get Algolia config
+        resp = session.get(collection_url, headers=HEADERS, timeout=30)
+        if resp.status_code != 200:
+            return None
+        
+        html = resp.text
+        
+        # Extract Algolia config
+        app_id_match = re.search(r'applicationId":"([^"]+)', html)
+        api_key_match = re.search(r'apiKey":"([^"]+)', html)
+        
+        if not app_id_match or not api_key_match:
+            return None
+        
+        app_id = app_id_match.group(1)
+        api_key = api_key_match.group(1)
+        
+        # Find product index name (look for _products_ indices)
+        indices = re.findall(r'([a-z0-9_]+_products_[a-z_]+)', html)
+        if not indices:
+            # Fallback: try base index + _products suffix
+            base_idx = re.findall(r'indexName":"([^"]+)', html)
+            if base_idx:
+                indices = [base_idx[0] + "_products_created_at_desc", base_idx[0]]
+        
+        if not indices:
+            return None
+        
+        index_name = indices[0]
+        
+        if progress_callback:
+            progress_callback(f"🔌 Found Algolia: {app_id} / {index_name}")
+        
+        # Search using the collection name as query
+        search_term = collection_name.replace("-", " ").replace(".html", "").strip()
+        
+        all_products = []
+        page = 0
+        hits_per_page = 50
+        
+        while True:
+            resp = session.post(
+                f"https://{app_id}-dsn.algolia.net/1/indexes/{index_name}/query",
+                headers={
+                    "X-Algolia-Application-Id": app_id,
+                    "X-Algolia-API-Key": api_key,
+                    "Content-Type": "application/json",
+                },
+                json={"params": f"query={search_term}&hitsPerPage={hits_per_page}&page={page}"},
+                timeout=30,
+            )
+            
+            if resp.status_code != 200:
+                break
+            
+            data = resp.json()
+            hits = data.get("hits", [])
+            total = data.get("nbHits", 0)
+            
+            if not hits:
+                break
+            
+            all_products.extend(hits)
+            
+            if progress_callback:
+                progress_callback(f"📦 Algolia page {page + 1}: {len(hits)} products (total: {len(all_products)}/{total})")
+            
+            if len(all_products) >= total or len(hits) < hits_per_page:
+                break
+            
+            page += 1
+            time.sleep(0.3)
+        
+        if not all_products:
+            return None
+        
+        if progress_callback:
+            progress_callback(f"✅ Algolia: Found {len(all_products)} products")
+        
+        # Convert to standard format
+        website_name = urlparse(base_url).netloc.replace("www.", "")
+        converted = []
+        for p in all_products:
+            price_data = p.get("price", {}).get("GBP", {})
+            price = price_data.get("default", 0) if isinstance(price_data, dict) else 0
+            original = price_data.get("default_original_formated", "") if isinstance(price_data, dict) else ""
+            
+            product = {
+                "title": p.get("name", ""),
+                "url": p.get("url", ""),
+                "prices": [f"£{price:.2f}"] if price else [],
+                "description": p.get("description", "") or p.get("short_description", ""),
+                "images": [],
+                "variants": [],
+                "tables": [],
+                "breadcrumbs": [],
+            }
+            
+            # Images
+            if p.get("image_url"):
+                product["images"].append(p["image_url"])
+            if p.get("thumbnail_url"):
+                product["images"].append(p["thumbnail_url"])
+            if p.get("media_gallery"):
+                for img in p.get("media_gallery", []):
+                    if isinstance(img, dict) and img.get("url"):
+                        product["images"].append(img["url"])
+                    elif isinstance(img, str):
+                        product["images"].append(img)
+            
+            # Categories
+            if p.get("categories"):
+                if isinstance(p["categories"], dict):
+                    for cat in p["categories"].values():
+                        if isinstance(cat, str):
+                            product["breadcrumbs"].append(cat)
+            
+            converted.append(product)
+        
+        return {
+            "collection_url": collection_url,
+            "collection_name": collection_name,
+            "website_name": website_name,
+            "total_products": len(converted),
+            "products": converted,
+        }
+    
+    except Exception as e:
+        if progress_callback:
+            progress_callback(f"⚠️ Algolia error: {e}")
+        return None
+
+
 def scrape_collection(collection_url, progress_callback=None):
     """Scrape all products from a collection URL. Returns list of product data dicts."""
     session = requests.Session()
@@ -650,7 +791,12 @@ def scrape_collection(collection_url, progress_callback=None):
     collection_name = path.split("/")[-1].replace("-", " ").title()
     website_name = parsed.netloc.replace("www.", "")
     
-    # ── Try Magento GraphQL first ──
+    # ── Try Algolia Search API (Magento 2 Hyva/React frontends) ──
+    algolia_result = try_algolia_search(base_url, collection_url, collection_name, progress_callback)
+    if algolia_result and algolia_result.get("products"):
+        return algolia_result
+    
+    # ── Try Magento GraphQL ──
     url_path = path.split(".")[0]  # Remove .html extension
     graphql_result = try_magento_graphql(base_url, url_path, progress_callback)
     if graphql_result and graphql_result.get("products"):
