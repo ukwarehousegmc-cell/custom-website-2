@@ -682,9 +682,88 @@ def scrape_collection(collection_url, progress_callback=None):
             "products": products,
         }
     
+    # ── Try Sitemap for this collection ──
+    if progress_callback:
+        progress_callback("📍 Trying sitemap to find products...")
+    
+    sitemap_products = []
+    collection_path = parsed.path.strip("/").split(".")[0]  # e.g. "boot-wipers"
+    
+    for sitemap_path in ["/sitemap.xml", "/pub/sitemap.xml", "/sitemap_products_1.xml"]:
+        try:
+            resp = session.get(f"{base_url}{sitemap_path}", headers=HEADERS, timeout=15)
+            if resp.status_code != 200:
+                continue
+            
+            sitemap_soup = BeautifulSoup(resp.text, "lxml-xml")
+            
+            # Check for sitemap index
+            sub_sitemaps = sitemap_soup.find_all("sitemap")
+            if sub_sitemaps:
+                for sm in sub_sitemaps:
+                    loc = sm.find("loc")
+                    if loc:
+                        try:
+                            sr = session.get(loc.text.strip(), headers=HEADERS, timeout=15)
+                            if sr.status_code == 200:
+                                sub_soup = BeautifulSoup(sr.text, "lxml-xml")
+                                for url_tag in sub_soup.find_all("url"):
+                                    loc_tag = url_tag.find("loc")
+                                    if not loc_tag:
+                                        continue
+                                    url = loc_tag.text.strip()
+                                    has_image = url_tag.find("image:image") is not None
+                                    # Match products under this collection path
+                                    if has_image and collection_path in url:
+                                        sitemap_products.append(url)
+                        except Exception:
+                            pass
+                continue
+            
+            # Regular sitemap — find product URLs matching this collection
+            for url_tag in sitemap_soup.find_all("url"):
+                loc_tag = url_tag.find("loc")
+                if not loc_tag:
+                    continue
+                url = loc_tag.text.strip()
+                has_image = url_tag.find("image:image") is not None
+                
+                if has_image and collection_path in url:
+                    sitemap_products.append(url)
+            
+            if sitemap_products:
+                break
+        except Exception:
+            pass
+    
+    if sitemap_products:
+        if progress_callback:
+            progress_callback(f"✅ Sitemap: Found {len(sitemap_products)} products for '{collection_name}'")
+        
+        products = []
+        for i, link in enumerate(sitemap_products):
+            if progress_callback:
+                progress_callback(f"Scraping product {i+1}/{len(sitemap_products)}: {link}")
+            try:
+                product_data, session = scrape_product_page(link, session)
+                products.append(product_data)
+                time.sleep(0.5)
+            except Exception as e:
+                if progress_callback:
+                    progress_callback(f"Error scraping {link}: {e}")
+                products.append({"url": link, "error": str(e)})
+        
+        return {
+            "collection_url": collection_url,
+            "collection_name": collection_name,
+            "website_name": website_name,
+            "total_products": len(products),
+            "products": products,
+        }
+    
     # ── Fallback to HTML scraping ──
     if progress_callback:
-        progress_callback("⚠️ Not a Shopify store or JSON API unavailable. Using HTML scraping...")
+        progress_callback("⚠️ Sitemap didn't match. Using HTML scraping...")
     
     all_product_links = []
     page_url = collection_url
