@@ -218,8 +218,27 @@ def extract_product_links(soup, base_url):
     for a in soup.find_all("a", href=True):
         href = a["href"]
         full = urljoin(base_url, href)
+        
+        # Standard ecommerce URL patterns
         if any(p in href.lower() for p in ["/product/", "/products/", "/p/", "/-p-", "/item/"]):
             links.add(full)
+            continue
+        
+        # Magento: links with product-related classes (product-item-photo, product-item-link)
+        classes = " ".join(a.get("class") or []).lower()
+        if "product" in classes and href and not href.startswith("#") and not href.startswith("javascript"):
+            parsed_href = urlparse(urljoin(base_url, href))
+            # Must be same domain and have a path
+            if parsed_href.netloc == urlparse(base_url).netloc and parsed_href.path not in ['/', '']:
+                links.add(full)
+                continue
+        
+        # Magento: product links inside product-item containers
+        parent = a.find_parent(class_=lambda c: c and any("product-item" in x.lower() for x in (c if isinstance(c, list) else [c])))
+        if parent and href and not href.startswith("#") and not href.startswith("javascript"):
+            parsed_href = urlparse(urljoin(base_url, href))
+            if parsed_href.netloc == urlparse(base_url).netloc and parsed_href.path not in ['/', '']:
+                links.add(full)
     
     return list(links)
 
