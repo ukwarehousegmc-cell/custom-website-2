@@ -477,6 +477,168 @@ def scrape_product_page(url, session=None):
 
 # ─── Main scrape function ───
 
+def try_magento_graphql(base_url, url_path, progress_callback=None):
+    """Try to scrape products via Magento 2 GraphQL API."""
+    session = requests.Session()
+    graphql_url = f"{base_url}/graphql"
+    
+    if progress_callback:
+        progress_callback(f"🔌 Trying Magento GraphQL API...")
+    
+    query = """
+    query($urlPath: String!, $page: Int!, $pageSize: Int!) {
+      categoryList(filters: { url_path: { eq: $urlPath } }) {
+        id name url_path product_count
+        products(pageSize: $pageSize, currentPage: $page, sort: { position: ASC }) {
+          items {
+            name sku url_key __typename
+            price_range {
+              minimum_price {
+                regular_price { value currency }
+                final_price { value currency }
+                discount { amount_off percent_off }
+              }
+            }
+            description { html }
+            short_description { html }
+            small_image { url label }
+            media_gallery { url label }
+            ... on BundleProduct {
+              items {
+                title required
+                options { label price quantity }
+              }
+              dynamic_price
+            }
+            ... on ConfigurableProduct {
+              configurable_options {
+                label attribute_code
+                values { label swatch_data { value } }
+              }
+            }
+          }
+          total_count
+          page_info { current_page page_size total_pages }
+        }
+      }
+    }
+    """
+    
+    try:
+        all_products = []
+        page = 1
+        page_size = 50
+        
+        while True:
+            resp = session.post(
+                graphql_url,
+                headers={**HEADERS, "Content-Type": "application/json"},
+                json={"query": query, "variables": {"urlPath": url_path, "page": page, "pageSize": page_size}},
+                timeout=30,
+            )
+            
+            if resp.status_code != 200:
+                return None
+            
+            data = resp.json()
+            categories = data.get("data", {}).get("categoryList", [])
+            if not categories:
+                return None
+            
+            cat = categories[0]
+            products = cat.get("products", {})
+            items = products.get("items", [])
+            total = products.get("total_count", 0)
+            
+            if not items:
+                if page == 1:
+                    return None
+                break
+            
+            all_products.extend(items)
+            
+            if progress_callback:
+                progress_callback(f"📦 GraphQL page {page}: {len(items)} products (total: {len(all_products)}/{total})")
+            
+            page_info = products.get("page_info", {})
+            if page >= page_info.get("total_pages", 1):
+                break
+            
+            page += 1
+            time.sleep(0.5)
+        
+        if not all_products:
+            return None
+        
+        if progress_callback:
+            progress_callback(f"✅ Magento GraphQL: Found {len(all_products)} products in '{cat['name']}'")
+        
+        # Convert to standard format
+        website_name = urlparse(base_url).netloc.replace("www.", "")
+        converted = []
+        for p in all_products:
+            price_data = p.get("price_range", {}).get("minimum_price", {})
+            final_price = price_data.get("final_price", {}).get("value", 0)
+            regular_price = price_data.get("regular_price", {}).get("value", 0)
+            currency = price_data.get("final_price", {}).get("currency", "GBP")
+            
+            product = {
+                "title": p["name"],
+                "url": f"{base_url}/{p['url_key']}.html",
+                "prices": [f"£{final_price:.2f}"],
+                "description": p.get("description", {}).get("html", "") or p.get("short_description", {}).get("html", ""),
+                "images": [img["url"] for img in p.get("media_gallery", []) if img.get("url")],
+                "variants": [],
+                "tables": [],
+                "breadcrumbs": [cat["name"]],
+            }
+            
+            if not product["images"] and p.get("small_image", {}).get("url"):
+                product["images"] = [p["small_image"]["url"]]
+            
+            # Configurable options → variants
+            if p.get("configurable_options"):
+                for opt in p["configurable_options"]:
+                    product["variants"].append({
+                        "label": opt["label"],
+                        "options": [v["label"] for v in opt.get("values", [])]
+                    })
+            
+            # Bundle options → bundle_options
+            if p.get("items"):  # Bundle product
+                bundle_opts = []
+                for bi in p["items"]:
+                    bundle_opts.append({
+                        "title": bi["title"],
+                        "required": bi.get("required", True),
+                        "type": "colour_swatch" if "colour" in bi["title"].lower() or "color" in bi["title"].lower() else "dropdown",
+                        "items": [{"name": opt["label"], "price_adjustment": float(opt.get("price", 0) or 0)} for opt in bi.get("options", [])],
+                    })
+                if bundle_opts:
+                    product["bundle_options"] = bundle_opts
+                    product["is_bundle"] = True
+                    product["base_price"] = final_price
+            
+            # Price comparison
+            if regular_price > final_price:
+                product["prices"].append(f"£{regular_price:.2f}")
+            
+            converted.append(product)
+        
+        return {
+            "collection_url": f"{base_url}/{url_path}.html",
+            "collection_name": cat["name"],
+            "website_name": website_name,
+            "total_products": len(converted),
+            "products": converted,
+        }
+    
+    except Exception as e:
+        if progress_callback:
+            progress_callback(f"⚠️ GraphQL error: {e}")
+        return None
+
+
 def scrape_collection(collection_url, progress_callback=None):
     """Scrape all products from a collection URL. Returns list of product data dicts."""
     session = requests.Session()
@@ -488,7 +650,13 @@ def scrape_collection(collection_url, progress_callback=None):
     collection_name = path.split("/")[-1].replace("-", " ").title()
     website_name = parsed.netloc.replace("www.", "")
     
-    # ── Try Shopify JSON API first ──
+    # ── Try Magento GraphQL first ──
+    url_path = path.split(".")[0]  # Remove .html extension
+    graphql_result = try_magento_graphql(base_url, url_path, progress_callback)
+    if graphql_result and graphql_result.get("products"):
+        return graphql_result
+    
+    # ── Try Shopify JSON API ──
     if progress_callback:
         progress_callback("🔍 Trying Shopify JSON API...")
     
