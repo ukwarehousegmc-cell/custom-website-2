@@ -855,7 +855,7 @@ def generate_product_image(prompt, reference_images=None, product_title=None, va
         contents.extend(pil_images)
 
         response = gemini_client.models.generate_content(
-            model="gemini-2.5-flash-preview-image-generation",
+            model="gemini-2.5-pro",
             contents=contents,
         )
     else:
@@ -867,7 +867,7 @@ IMAGE REQUIREMENTS: square image, 1000 x 1000 px, aspect ratio 1:1, high resolut
 HUMAN RULE: Maximum ONE person if needed. Product must remain the main focus.""")]
 
         response = gemini_client.models.generate_content(
-            model="gemini-2.5-flash-preview-image-generation",
+            model="gemini-2.5-pro",
             contents=contents,
             config=genai.types.GenerateContentConfig(
                 response_modalities=["IMAGE", "TEXT"],
